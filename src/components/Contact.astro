@@ -108,8 +108,11 @@ const t = useTranslations(lang);
           {t('contact.form.title')}
         </h3>
         
-        <form name="contact" method="POST" data-netlify="true" class="space-y-6">
-          <input type="hidden" name="form-name" value="contact" />
+        <form action="https://formspree.io/f/mrbkwnnq" method="POST" class="space-y-6">
+          <!-- Formspree configuration -->
+          <input type="hidden" name="_subject" value="New contact from portfolio website" />
+          <input type="hidden" name="_next" value="thank-you" />
+          <input type="hidden" name="_captcha" value="false" />
           
           <div class="grid md:grid-cols-2 gap-6">
             <div>
@@ -133,7 +136,7 @@ const t = useTranslations(lang);
               <input
                 type="email"
                 id="email"
-                name="email"
+                name="_replyto"
                 required
                 class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 dark:text-white transition-colors"
                 placeholder={t('contact.form.emailPlaceholder')}
