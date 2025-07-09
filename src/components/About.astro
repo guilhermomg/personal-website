@@ -1,0 +1,124 @@
+---
+import { getLangFromUrl, useTranslations } from '../i18n/utils';
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
+const skillCategories = {
+  'Frontend': [
+    'JavaScript', 'TypeScript', 'ReactJS', 'Next.js', 'Vue.js', 'Astro',
+    'HTML5', 'CSS3', 'jQuery', 'Bootstrap', 'Tailwind CSS',
+    'Styled Components', 'Flutter (Dart)', 'React Native', 'Android'
+  ],
+  'Backend': [
+    'Node.js', 'Express.js', '.NET Core / MVC', 'C#', 
+    'Java', 'SpringBoot', 'Delphi Pascal', 'C++', 'Kotlin', 'REST APIs',
+    'GraphQL', 'Microservices', 'OpenAI API'  
+  ],
+  'Database': [
+    'PostgreSQL', 'MongoDB', 'MySQL', 'SQL Server', 'SQLite', 'Firebird', 
+    'Oracle', 'Redis'
+  ],
+  'Tools & DevOps': [
+    'Git', 'GitHub', 'GitHub Actions', 'Jenkins', 'TeamCity', 'Docker', 
+    'Azure', 'AWS', 'GCP', 'Vercel', 'CI/CD'
+  ]
+};
+
+const skillTranslationKeys = {
+  'Frontend': 'about.skills.frontend',
+  'Backend': 'about.skills.backend', 
+  'Database': 'about.skills.database',
+  'Tools & DevOps': 'about.skills.tools'
+};
+---
+
+<section id="about" class="py-20 bg-white dark:bg-gray-900">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-16">
+      <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+        {t('about.title')}
+      </h2>
+      <div class="w-20 h-1 bg-primary-600 mx-auto mb-8"></div>
+      <p class="max-w-3xl mx-auto text-lg text-gray-600 dark:text-gray-400 leading-relaxed">
+        {t('about.description')}
+      </p>
+    </div>
+    
+    <div class="grid lg:grid-cols-2 gap-12 items-start">
+      <!-- Text Content -->
+      <div class="space-y-6">
+        <div class="prose prose-lg dark:prose-invert">
+          <p class="text-gray-600 dark:text-gray-400 leading-relaxed">
+            {t('about.text1')}
+          </p>
+          
+          <p class="text-gray-600 dark:text-gray-400 leading-relaxed">
+            {t('about.text2')}
+          </p>
+          
+          <p class="text-gray-600 dark:text-gray-400 leading-relaxed">
+            {t('about.text3')}
+          </p>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-2 gap-6 pt-6">
+          <div class="text-center p-6 bg-gradient-to-br from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 rounded-xl border border-primary-100 dark:border-primary-800">
+            <div class="text-3xl font-bold text-primary-600 dark:text-primary-400 mb-2">5+</div>
+            <div class="text-sm font-medium text-gray-600 dark:text-gray-400">{t('about.yearsExperience')}</div>
+          </div>
+          <div class="text-center p-6 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl border border-purple-100 dark:border-purple-800">
+            <div class="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">50+</div>
+            <div class="text-sm font-medium text-gray-600 dark:text-gray-400">{t('about.projectsCompleted')}</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Skills Section -->
+      <div class="space-y-8">
+        <h3 class="text-2xl font-semibold text-gray-900 dark:text-white">
+          {t('skills.title')}
+        </h3>
+        
+        <div class="space-y-8">
+          {Object.entries(skillCategories).map(([category, skills]) => (
+            <div class="space-y-4">
+              <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+                <span class="w-2 h-2 bg-primary-600 rounded-full mr-3"></span>
+                {t(skillTranslationKeys[category])}
+              </h4>
+              <div class="grid grid-cols-2 gap-3">
+                {skills.map(skill => (
+                  <div class="group">
+                    <div class="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all duration-200 cursor-default">
+                      <span class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
+                        {skill}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <!-- Additional Info -->
+        <div class="mt-8 p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-xl">
+          <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">{t('about.currentlyLearning')}</h4>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-sm rounded-full border border-yellow-200 dark:border-yellow-700">
+              AI/ML Integration
+            </span>
+            <span class="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-sm rounded-full border border-green-200 dark:border-green-700">
+              OpenAI API
+            </span>
+            <span class="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-sm rounded-full border border-blue-200 dark:border-blue-700">
+              Go
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

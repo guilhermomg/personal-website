@@ -1,0 +1,189 @@
+---
+import { getLangFromUrl, useTranslations } from '../i18n/utils';
+
+const lang = getLangFromUrl(Astro.url);
+const t = useTranslations(lang);
+
+const experiences = [
+  {
+    titleKey: 'experience.titles.seniorFullStack',
+    company: 'ALTEN Canada (Société Générale)',
+    startMonth: 'experience.dates.august',
+    startYear: '2022',
+    endMonth: 'experience.dates.present',
+    endYear: '',
+    locationKey: 'experience.countries.canada',
+    description: [
+      t('experience.alten.desc1'),
+      t('experience.alten.desc2'),
+      t('experience.alten.desc3'),
+      t('experience.alten.desc4')
+    ],
+    technologies: ['.NET', 'Java', 'React', 'Angular', 'Azure', 'Node.js', 'Oracle', 'PostgreSQL', 'SQL Server']
+  },
+  {
+    titleKey: 'experience.titles.techLead',
+    company: 'Boticário Group',
+    startMonth: 'experience.dates.january',
+    startYear: '2021',
+    endMonth: 'experience.dates.july',
+    endYear: '2022',
+    locationKey: 'experience.countries.brazil',
+    description: [
+      t('experience.boticario.desc1'),
+      t('experience.boticario.desc2'),
+      t('experience.boticario.desc3'),
+      t('experience.boticario.desc4')
+    ],
+    technologies: ['Node.js', '.NET Core', 'Angular', 'Android', 'Java', 'Kotlin', 'SQL Server', 'PostgreSQL', 'MongoDB', 'RabbitMQ', 'AWS']
+  },
+  {
+    titleKey: 'experience.titles.systemsDeveloper',
+    company: 'Ewave do Brasil',
+    startMonth: 'experience.dates.october',
+    startYear: '2020',
+    endMonth: 'experience.dates.december',
+    endYear: '2020',
+    locationKey: 'experience.countries.brazil',
+    description: [
+      t('experience.ewave.desc1'),
+      t('experience.ewave.desc2'),
+      t('experience.ewave.desc3'),
+      t('experience.ewave.desc4')
+    ],
+    technologies: ['TypeScript', 'Angular', 'React Native', 'C#', '.NET Core', 'SQL Server']
+  },
+  {
+    titleKey: 'experience.titles.seniorSystemsDevTechLead',
+    company: 'Nimbly',
+    startMonth: 'experience.dates.june',
+    startYear: '2013',
+    endMonth: 'experience.dates.september',
+    endYear: '2020',
+    locationKey: 'experience.countries.brazil',
+    description: [
+      t('experience.nimbly.desc1'),
+      t('experience.nimbly.desc2'),
+      t('experience.nimbly.desc3'),
+      t('experience.nimbly.desc4')
+    ],
+    technologies: ['Node.js', 'JavaScript', 'jQuery', 'Angular', 'TypeScript', 'SQL Server', 'Azure', 'Delphi Pascal', 'C#', '.NET', 'Java', 'Flutter', 'C++']
+  },
+  {
+    titleKey: 'experience.titles.webAppsDeveloper',
+    company: 'Silverlink Communications',
+    startMonth: 'experience.dates.january',
+    startYear: '2013',
+    endMonth: 'experience.dates.april',
+    endYear: '2013',
+    locationKey: 'experience.countries.usa',
+    description: [
+      t('experience.silverlink.desc1'),
+      t('experience.silverlink.desc2'),
+      t('experience.silverlink.desc3'),
+      t('experience.silverlink.desc4')
+    ],
+    technologies: ['JavaScript', 'jQuery', 'Bootstrap', 'ColdFusion', 'SQL Server']
+  },
+  {
+    titleKey: 'experience.titles.founderFullStack',
+    company: 'Mestre Gourmet',
+    startMonth: 'experience.dates.august',
+    startYear: '2011',
+    endMonth: 'experience.dates.january',
+    endYear: '2013',
+    locationKey: 'experience.countries.brazil',
+    description: [
+      t('experience.mestre.desc1'),
+      t('experience.mestre.desc2'),
+      t('experience.mestre.desc3'),
+      t('experience.mestre.desc4')
+    ],
+    technologies: ['C#', '.NET', 'JavaScript', 'jQuery', 'SQL Server', 'Java', 'Android']
+  },
+  {
+    titleKey: 'experience.titles.webDeveloper',
+    company: 'GHN Inteligência e Tecnologia',
+    startMonth: 'experience.dates.may',
+    startYear: '2008',
+    endMonth: 'experience.dates.july',
+    endYear: '2011',
+    locationKey: 'experience.countries.brazil',
+    description: [
+      t('experience.ghn.desc1'),
+      t('experience.ghn.desc2'),
+      t('experience.ghn.desc3'),
+      t('experience.ghn.desc4')
+    ],
+    technologies: ['C#', '.NET', 'SharePoint', 'JavaScript', 'jQuery']
+  }
+];
+---
+
+<section id="experience" class="py-20 bg-gray-50 dark:bg-gray-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-16">
+      <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+        {t('experience.title')}
+      </h2>
+      <div class="w-20 h-1 bg-primary-600 mx-auto mb-8"></div>
+    </div>
+    
+    <div class="relative">
+      <!-- Timeline line -->
+      <div class="absolute left-8 top-0 bottom-0 w-0.5 bg-primary-600 hidden md:block"></div>
+      
+      <div class="space-y-8">
+        {experiences.map((exp, index) => (
+          <div class="relative flex items-start space-x-8">
+            <!-- Timeline dot -->
+            <div class="hidden md:flex items-center justify-center w-16 h-16 bg-primary-600 rounded-full flex-shrink-0 relative z-10">
+              <div class="w-8 h-8 bg-white rounded-full"></div>
+            </div>
+            
+            <!-- Content -->
+            <div class="flex-1 md:ml-0 ml-8">
+              <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                  <div>
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
+                      {t(exp.titleKey)}
+                    </h3>
+                    <p class="text-lg text-primary-600 dark:text-primary-400 font-medium">
+                      {exp.company}
+                    </p>
+                  </div>
+                  <div class="text-sm text-gray-500 dark:text-gray-400 mt-2 sm:mt-0">
+                    <div>
+                      {t(exp.startMonth)} {exp.startYear} - {exp.endYear ? `${t(exp.endMonth)} ${exp.endYear}` : t(exp.endMonth)}
+                    </div>
+                    <div>{t(exp.locationKey)}</div>
+                  </div>
+                </div>
+                
+                <ul class="space-y-2 mb-6">
+                  {exp.description.map(item => (
+                    <li class="flex items-start space-x-2 text-gray-600 dark:text-gray-400">
+                      <svg class="w-4 h-4 text-primary-600 mt-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                      </svg>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                
+                <div class="flex flex-wrap gap-2">
+                  {exp.technologies.map(tech => (
+                    <span class="px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 text-sm rounded-full">
+                      {tech}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
