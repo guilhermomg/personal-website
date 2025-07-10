@@ -1,5 +1,6 @@
 ---
 import { getLangFromUrl, useTranslations } from '../i18n/utils';
+import Analytics from '@vercel/analytics/astro';
 
 export interface Props {
   title: string;
@@ -38,6 +39,7 @@ const t = useTranslations(lang);
   </head>
   <body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-sans">
     <slot />
+    <Analytics />
   </body>
 </html>
 
