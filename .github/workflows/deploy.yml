@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, master ]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -119,20 +123,8 @@ jobs:
         url=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
         echo "production_url=$url" >> $GITHUB_OUTPUT
         
-    - name: Create Release
-      if: success()
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: v${{ github.run_number }}
-        release_name: Release v${{ github.run_number }}
-        body: |
-          🚀 Automatic release created by GitHub Actions
-          
-          **Deployed to:** ${{ steps.deploy.outputs.production_url }}
-          
-          **Changes in this release:**
-          ${{ github.event.head_commit.message }}
-        draft: false
-        prerelease: false
+    - name: Deployment Success
+      run: |
+        echo "🚀 Deployment successful!"
+        echo "Production URL: ${{ steps.deploy.outputs.production_url }}"
+        echo "Commit: ${{ github.event.head_commit.message }}"
