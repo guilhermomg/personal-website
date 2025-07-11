@@ -1,59 +1,76 @@
 ---
-import { getLangFromUrl, useTranslations } from '../i18n/utils';
+import { getLangFromUrl, useTranslations } from "../i18n/utils";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
 // Resume file mapping
 const resumeFiles = {
-  en: '/resumes/guilhermo-gonzalez-resume-en.pdf',
-  fr: '/resumes/guilhermo-gonzalez-resume-fr.pdf',
-  pt: '/resumes/guilhermo-gonzalez-resume-pt.pdf',
+    en: "/resumes/guilhermo-gonzalez-resume-en.pdf",
+    fr: "/resumes/guilhermo-gonzalez-resume-fr.pdf",
+    pt: "/resumes/guilhermo-gonzalez-resume-pt.pdf",
 };
 
 const currentResumeFile = resumeFiles[lang as keyof typeof resumeFiles];
 ---
 
 <div class="flex justify-center">
-  <!-- Download Button -->
-  <a
-    href={currentResumeFile}
-    download={`guilhermo-gonzalez-resume-${lang}.pdf`}
-    class="inline-flex items-center px-6 py-3 border border-primary-600 text-base font-medium rounded-md text-primary-600 bg-white hover:bg-primary-50 dark:bg-gray-800 dark:text-primary-400 dark:border-primary-400 dark:hover:bg-primary-900/20 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 group"
-    aria-label={t('resume.download')}
-  >
-    <svg class="w-5 h-5 mr-2 group-hover:animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-    {t('resume.download')}
-  </a>
+    <!-- Download Button -->
+    <a
+        href={currentResumeFile}
+        download={`guilhermo-gonzalez-resume-${lang}.pdf`}
+        class="inline-flex items-center px-6 py-3 border border-primary-600 text-base font-medium rounded-md text-primary-600 bg-white hover:bg-primary-50 dark:bg-gray-800 dark:text-primary-400 dark:border-primary-400 dark:hover:bg-primary-900/20 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 group"
+        aria-label={t("resume.download")}
+    >
+        <svg
+            class="w-5 h-5 mr-2 group-hover:animate-bounce"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+        >
+            <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            ></path>
+        </svg>
+        {t("resume.download")}
+    </a>
 </div>
 
 <script>
-  // Add analytics tracking for resume downloads
-  document.addEventListener('DOMContentLoaded', function() {
-    const downloadButtons = document.querySelectorAll('a[download*="resume"]');
-    
-    downloadButtons.forEach(button => {
-      button.addEventListener('click', function(e) {
-        const filename = this.getAttribute('download');
-        
-        // Check if file exists before downloading
-        fetch(this.href, { method: 'HEAD' })
-          .then(response => {
-            if (!response.ok) {
-              e.preventDefault();
-              alert('Resume file not found. Please check back later or contact me directly.');
-            } else {
-              // Track download event (you can integrate with Google Analytics here)
-              console.log(`Resume downloaded: ${filename}`);
-            }
-          })
-          .catch(() => {
-            e.preventDefault();
-            alert('Resume file not found. Please check back later or contact me directly.');
-          });
-      });
+    // Add analytics tracking for resume downloads
+    document.addEventListener("DOMContentLoaded", function () {
+        const downloadButtons = document.querySelectorAll(
+            'a[download*="resume"]'
+        );
+
+        downloadButtons.forEach((button) => {
+            button.addEventListener("click", function (e) {
+                const target = e.currentTarget as HTMLAnchorElement;
+                const filename = target.getAttribute("download");
+
+                // Check if file exists before downloading
+                fetch(target.href, { method: "HEAD" })
+                    .then((response) => {
+                        if (!response.ok) {
+                            e.preventDefault();
+                            alert(
+                                "Resume file not found. Please check back later or contact me directly."
+                            );
+                        } else {
+                            // Track download event (you can integrate with Google Analytics here)
+                            console.log(`Resume downloaded: ${filename}`);
+                        }
+                    })
+                    .catch(() => {
+                        e.preventDefault();
+                        alert(
+                            "Resume file not found. Please check back later or contact me directly."
+                        );
+                    });
+            });
+        });
     });
-  });
 </script>
