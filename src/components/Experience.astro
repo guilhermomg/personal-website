@@ -1,5 +1,6 @@
 ---
 import { getLangFromUrl, useTranslations } from '../i18n/utils';
+import WorkExperienceSchema from './WorkExperienceSchema.astro';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -187,3 +188,6 @@ const experiences = [
     </div>
   </div>
 </section>
+
+<!-- Enhanced SEO: Work Experience Structured Data -->
+<WorkExperienceSchema />
