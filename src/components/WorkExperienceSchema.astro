@@ -1,0 +1,32 @@
+---
+// Add this to your Experience component to enhance structured data
+const workExperience = [
+  {
+    "@type": "WorkExperience",
+    "jobTitle": "Senior Full-Stack Developer",
+    "employer": {
+      "@type": "Organization",
+      "name": "Your Company Name"
+    },
+    "startDate": "2023-01",
+    "endDate": "2025-01", // or null if current
+    "description": "Developed web applications using React, Node.js, and TypeScript...",
+    "skills": ["JavaScript", "React", "Node.js", "TypeScript", "Python"]
+  }
+  // Add more experiences
+];
+
+// Add to JSON-LD in Layout.astro
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Guilhermo González",
+  "hasOccupation": workExperience,
+  // ...rest of your existing schema
+};
+---
+
+<!-- Example for Experience component -->
+<script type="application/ld+json">
+  {JSON.stringify(structuredData)}
+</script>

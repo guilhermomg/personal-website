@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://gonzalez.dev.br/sitemap-index.xml
+
+# Block access to potentially sensitive files
+Disallow: /api/
+Disallow: /*.json$
+
+# Allow specific directories
+Allow: /resumes/
+Allow: /assets/
+Allow: /images/

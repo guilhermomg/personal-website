@@ -11,9 +11,35 @@ import { getLangFromUrl, useTranslations } from '../i18n/utils';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
+
+// SEO data based on language
+const seoData = {
+  en: {
+    title: "Guilhermo González - Full-Stack Developer",
+    description: "Full-Stack Developer passionate about creating innovative digital solutions and exceptional user experiences. Specializing in JavaScript, TypeScript, React, and Node.js.",
+    keywords: "Full-Stack Developer, Web Developer, JavaScript, TypeScript, React, Node.js, Python, Software Engineer, Frontend, Backend"
+  },
+  pt: {
+    title: "Guilhermo González - Desenvolvedor Full-Stack",
+    description: "Desenvolvedor Full-Stack apaixonado por criar soluções digitais inovadoras e experiências excepcionais para usuários. Especialista em JavaScript, TypeScript, React e Node.js.",
+    keywords: "Desenvolvedor Full-Stack, Desenvolvedor Web, JavaScript, TypeScript, React, Node.js, Python, Engenheiro de Software, Frontend, Backend"
+  },
+  fr: {
+    title: "Guilhermo González - Développeur Full-Stack",
+    description: "Développeur Full-Stack passionné par la création de solutions digitales innovantes et d'expériences utilisateur exceptionnelles. Spécialisé en JavaScript, TypeScript, React et Node.js.",
+    keywords: "Développeur Full-Stack, Développeur Web, JavaScript, TypeScript, React, Node.js, Python, Ingénieur Logiciel, Frontend, Backend"
+  }
+};
+
+const currentSeo = seoData[lang] || seoData.en;
 ---
 
-<Layout title="Guilhermo González - Full-Stack Developer" description="Full-Stack Developer passionate about creating innovative digital solutions and exceptional user experiences.">
+<Layout 
+  title={currentSeo.title}
+  description={currentSeo.description}
+  keywords={currentSeo.keywords}
+  author="Guilhermo González"
+>
   <Navigation />
   <main>
     <Hero />

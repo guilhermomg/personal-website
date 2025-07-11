@@ -6,7 +6,11 @@ const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 ---
 
-<Layout title="Thank You - Guilhermo González">
+<Layout 
+  title="Thank You - Guilhermo González"
+  description="Thank you for getting in touch! I'll get back to you as soon as possible."
+  noindex={true}
+>
   <main class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
     <div class="max-w-md w-full text-center">
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">

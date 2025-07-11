@@ -1,47 +1,155 @@
-# Astro Starter Kit: Minimal
+# Guilhermo González - Personal Website
 
-```sh
-npm create astro@latest -- --template minimal
+A modern, responsive personal portfolio website built with Astro, featuring multi-language support and a clean, professional design.
+
+## 🚀 Features
+
+- **Multi-language Support**: Available in English, French, and Portuguese
+- **Resume Downloads**: Pre-generated PDF resumes in each language
+- **Modern Design**: Clean, professional UI built with Tailwind CSS
+- **Responsive Layout**: Optimized for all device sizes
+- **Performance Optimized**: Built with Astro for fast loading times
+- **Accessibility**: WCAG compliant design
+- **SEO Friendly**: Optimized meta tags and structure
+- **Contact Form**: Working contact form with Netlify integration
+
+## 🛠️ Technologies Used
+
+- **Astro** - Static site generator
+- **Tailwind CSS** - Utility-first CSS framework
+- **TypeScript** - Type-safe JavaScript
+- **React** - For interactive components
+- **Astro i18n** - Internationalization
+
+## 📁 Project Structure
+
 ```
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/withastro/astro/tree/latest/examples/minimal)
-[![Open with CodeSandbox](https://assets.codesandbox.io/github/button-edit-lime.svg)](https://codesandbox.io/p/sandbox/github/withastro/astro/tree/latest/examples/minimal)
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/withastro/astro?devcontainer_path=.devcontainer/minimal/devcontainer.json)
-
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
-
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
 /
 ├── public/
+│   ├── favicon.svg
+│   └── resumes/
+│       ├── README.md
+│       ├── guilhermo-gonzalez-resume-en.pdf
+│       ├── guilhermo-gonzalez-resume-fr.pdf
+│       └── guilhermo-gonzalez-resume-pt.pdf
 ├── src/
+│   ├── components/
+│   │   ├── About.astro
+│   │   ├── Contact.astro
+│   │   ├── Experience.astro
+│   │   ├── Footer.astro
+│   │   ├── Hero.astro
+│   │   ├── LanguageSwitcher.astro
+│   │   ├── Navigation.astro
+│   │   ├── Projects.astro
+│   │   └── ResumeDownload.astro
+│   ├── i18n/
+│   │   ├── config.ts
+│   │   └── utils.ts
+│   ├── layouts/
+│   │   └── Layout.astro
 │   └── pages/
-│       └── index.astro
+│       ├── index.astro
+│       ├── fr/
+│       │   └── index.astro
+│       └── pt/
+│           └── index.astro
+├── astro.config.mjs
+├── tailwind.config.mjs
 └── package.json
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## 🏃‍♂️ Getting Started
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-Any static assets, like images, can be placed in the `public/` directory.
+2. **Start the development server**
+   ```bash
+   npm run dev
+   ```
 
-## 🧞 Commands
+3. **Build for production**
+   ```bash
+   npm run build
+   ```
 
-All commands are run from the root of the project, from a terminal:
+4. **Preview the production build**
+   ```bash
+   npm run preview
+   ```
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+## 🌐 Available Languages
 
-## 👀 Want to learn more?
+- **English** (default) - `/`
+- **French** - `/fr`
+- **Portuguese** - `/pt`
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+## 📄 Resume Downloads
+
+The website includes resume download functionality in all three languages:
+
+- **English**: `guilhermo-gonzalez-resume-en.pdf`
+- **French**: `guilhermo-gonzalez-resume-fr.pdf`  
+- **Portuguese**: `guilhermo-gonzalez-resume-pt.pdf`
+
+### Adding Resume Files
+
+1. Place your PDF resume files in the `public/resumes/` directory
+2. Use the exact filenames specified above
+3. The download buttons will automatically link to the correct language version
+4. Include error handling for missing files
+
+## 📝 Customization
+
+### Personal Information
+Update your personal information in:
+- `src/i18n/config.ts` - Translations
+- `src/components/Hero.astro` - Hero section content
+- `src/components/About.astro` - About section and skills
+- `src/components/Experience.astro` - Work experience
+- `src/components/Projects.astro` - Portfolio projects
+- `src/components/Contact.astro` - Contact information
+- `src/components/ResumeDownload.astro` - Resume download functionality
+
+### Styling
+The website uses Tailwind CSS for styling. You can customize:
+- Colors in `tailwind.config.mjs`
+- Typography and spacing using Tailwind classes
+- Dark mode support is built-in
+
+### Adding New Languages
+1. Add the language to `src/i18n/config.ts`
+2. Add translations to the `ui` object
+3. Create a new page directory in `src/pages/[lang]/`
+4. Update the Astro config in `astro.config.mjs`
+5. Add corresponding resume file in `public/resumes/`
+
+## �� Deployment
+
+This site is optimized for deployment on:
+- **Netlify** (recommended for the contact form)
+- **Vercel**
+- **GitHub Pages**
+- Any static hosting provider
+
+### Netlify Deployment
+1. Connect your repository to Netlify
+2. Set build command: `npm run build`
+3. Set publish directory: `dist`
+4. The contact form will work automatically with Netlify Forms
+5. Upload resume files to the deployed site's `/resumes/` directory
+
+## 📄 License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+## 📞 Contact
+
+Feel free to reach out if you have any questions or suggestions!
+
+- **Email**: guilhermomg@gmail.com
+- **LinkedIn**: [linkedin.com/in/guilhermogonzalez](https://www.linkedin.com/in/guilhermogonzalez/)
+- **GitHub**: [github.com/guilhermomg](https://github.com/guilhermomg)
