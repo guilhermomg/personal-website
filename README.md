@@ -150,6 +150,6 @@ This project is open source and available under the [MIT License](LICENSE).
 
 Feel free to reach out if you have any questions or suggestions!
 
-- **Email**: guilhermomg@gmail.com
+- **Email**: gui@gonzalez.dev.br
 - **LinkedIn**: [linkedin.com/in/guilhermogonzalez](https://www.linkedin.com/in/guilhermogonzalez/)
 - **GitHub**: [github.com/guilhermomg](https://github.com/guilhermomg)
