@@ -1,0 +1,87 @@
+---
+export const prerender = false;
+
+import Layout from "../../layouts/Layout.astro";
+import { createServerClient } from "../../lib/supabase";
+
+const adminEmail = import.meta.env.ADMIN_EMAIL;
+
+const supabase = createServerClient(Astro.cookies);
+const {
+    data: { user },
+    error,
+} = await supabase.auth.getUser();
+
+// Redirect to login if not authenticated
+if (!user || error) {
+    return Astro.redirect("/admin/login");
+}
+
+if (user.email !== adminEmail) {
+    // Sign out and redirect
+    await supabase.auth.signOut();
+    return Astro.redirect("/admin/login?error=unauthorized");
+}
+
+// User is authenticated and authorized
+const userEmail = user.email;
+---
+
+<Layout title="Admin Dashboard - Guilhermo González">
+    <div
+        class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800"
+    >
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div id="dashboard">
+                <div class="mb-8 flex justify-between items-center">
+                    <div>
+                        <h1
+                            class="text-3xl font-bold text-gray-900 dark:text-white"
+                        >
+                            Admin Dashboard
+                        </h1>
+                        <p class="text-gray-600 dark:text-gray-400 mt-2">
+                            Welcome back, {userEmail}
+                        </p>
+                    </div>
+                    <button
+                        id="logout-btn"
+                        class="px-6 py-2 border border-transparent text-base font-medium rounded-md text-white bg-red-600 hover:bg-red-700 transition-colors"
+                    >
+                        Sign Out
+                    </button>
+                </div>
+
+                <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <div
+                        class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6"
+                    >
+                        <h3
+                            class="text-lg font-semibold text-gray-900 dark:text-white mb-2"
+                        >
+                            Dashboard
+                        </h3>
+                        <p class="text-gray-600 dark:text-gray-400">
+                            Admin dashboard is ready!
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        import { supabase } from "../../lib/supabase";
+
+        const logoutBtn = document.getElementById("logout-btn");
+
+        async function logout() {
+            await supabase.auth.signOut();
+            window.location.href = "/admin/login";
+        }
+
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", logout);
+        }
+    </script>
+</Layout>

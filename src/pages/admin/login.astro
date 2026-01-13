@@ -1,0 +1,148 @@
+---
+export const prerender = false;
+
+import Layout from "../../layouts/Layout.astro";
+
+const errorParam = Astro.url.searchParams.get("error");
+let errorMessage = "";
+
+if (errorParam === "unauthorized") {
+    errorMessage = "You are not authorized to access the admin dashboard.";
+}
+---
+
+<Layout title="Admin Login - Guilhermo González">
+    <div
+        class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4 sm:px-6 lg:px-8"
+    >
+        <div class="max-w-md w-full space-y-8">
+            <div class="text-center">
+                <div class="flex justify-center mb-6">
+                    <div
+                        class="w-20 h-20 rounded-full bg-gradient-to-r from-primary-500 to-purple-600 p-1"
+                    >
+                        <div
+                            class="w-full h-full rounded-full bg-white dark:bg-gray-800 flex items-center justify-center text-2xl font-bold text-primary-600"
+                        >
+                            GG
+                        </div>
+                    </div>
+                </div>
+                <h1
+                    class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2"
+                >
+                    Admin Login
+                </h1>
+                <p class="text-gray-600 dark:text-gray-400">
+                    Sign in to access the admin dashboard
+                </p>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-8">
+                {
+                    errorMessage && (
+                        <div class="mb-4 text-red-600 dark:text-red-400 text-sm text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-md">
+                            {errorMessage}
+                        </div>
+                    )
+                }
+                <div id="auth-container" class="space-y-4">
+                    <button
+                        id="github-login-btn"
+                        class="w-full inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                    >
+                        <svg
+                            class="w-5 h-5 mr-2"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path
+                                fill-rule="evenodd"
+                                d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                                clip-rule="evenodd"></path>
+                        </svg>
+                        Sign in with GitHub
+                    </button>
+
+                    <div
+                        id="error-message"
+                        class="hidden text-red-600 dark:text-red-400 text-sm text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-md"
+                    >
+                    </div>
+
+                    <div
+                        id="loading-message"
+                        class="hidden text-primary-600 dark:text-primary-400 text-sm text-center p-3 bg-primary-50 dark:bg-primary-900/20 rounded-md"
+                    >
+                        Redirecting to GitHub...
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <a
+                    href="/"
+                    class="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
+                >
+                    ← Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        import { supabase } from "../../lib/supabase";
+
+        const button = document.getElementById("github-login-btn");
+        const errorMessage = document.getElementById("error-message");
+        const loadingMessage = document.getElementById("loading-message");
+
+        async function loginWithGitHub() {
+            try {
+                if (button) {
+                    button.setAttribute("disabled", "true");
+                    button.classList.add("opacity-50", "cursor-not-allowed");
+                }
+                if (loadingMessage) {
+                    loadingMessage.classList.remove("hidden");
+                }
+                if (errorMessage) {
+                    errorMessage.classList.add("hidden");
+                }
+
+                const { data, error } = await supabase.auth.signInWithOAuth({
+                    provider: "github",
+                    options: {
+                        redirectTo: `${window.location.origin}/admin/callback`,
+                        skipBrowserRedirect: false,
+                    },
+                });
+
+                if (error) {
+                    throw error;
+                }
+            } catch (error) {
+                if (errorMessage) {
+                    errorMessage.textContent =
+                        error instanceof Error
+                            ? error.message
+                            : "Failed to sign in. Please try again.";
+                    errorMessage.classList.remove("hidden");
+                }
+                if (loadingMessage) {
+                    loadingMessage.classList.add("hidden");
+                }
+
+                if (button) {
+                    button.removeAttribute("disabled");
+                    button.classList.remove("opacity-50", "cursor-not-allowed");
+                }
+            }
+        }
+
+        if (button) {
+            button.addEventListener("click", loginWithGitHub);
+        }
+    </script>
+</Layout>
