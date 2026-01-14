@@ -2,6 +2,11 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "astro",
+  "functions": {
+    "**/*.astro": {
+      "runtime": "nodejs20.x"
+    }
+  },
   "redirects": [
     {
       "source": "/resume",
