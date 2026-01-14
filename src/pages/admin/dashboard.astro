@@ -255,7 +255,6 @@ const statusColors = {
         import { supabase } from "../../lib/supabase";
 
         const logoutBtn = document.getElementById("logout-btn");
-        const refreshLink = document.getElementById("refresh-list");
 
         async function logout() {
             await supabase.auth.signOut();
@@ -264,13 +263,6 @@ const statusColors = {
 
         if (logoutBtn) {
             logoutBtn.addEventListener("click", logout);
-        }
-
-        if (refreshLink) {
-            refreshLink.addEventListener("click", (event) => {
-                event.preventDefault();
-                window.location.reload();
-            });
         }
 
         // Handle delete buttons
