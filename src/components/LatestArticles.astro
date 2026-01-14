@@ -1,0 +1,74 @@
+---
+import { createServerClient } from "../lib/supabase";
+
+const supabase = createServerClient(Astro.cookies);
+
+const { data: articles } = await supabase
+    .from("articles")
+    .select("id, title, slug, content, created_at")
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .limit(3);
+
+const stripMarkdown = (text: string) => {
+    return text.replace(/[#*`_\[\]()]/g, "").trim();
+};
+
+const getExcerpt = (content: string, length: number = 200) => {
+    const stripped = stripMarkdown(content);
+    return stripped.length > length
+        ? stripped.substring(0, length) + "..."
+        : stripped;
+};
+
+const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    });
+};
+---
+
+{
+    articles && articles.length > 0 && (
+        <section class="py-24 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+                    Latest Articles
+                </h2>
+                <p class="text-gray-600 dark:text-gray-400 mb-12">
+                    Thoughts on web development and technology
+                </p>
+
+                <div class="grid md:grid-cols-3 gap-6 mb-8">
+                    {articles.map((article) => (
+                        <a
+                            href={`/articles/${article.slug}`}
+                            class="bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl rounded-lg overflow-hidden transition-shadow"
+                        >
+                            <div class="p-6">
+                                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                                    {article.title}
+                                </h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                                    {formatDate(article.created_at)}
+                                </p>
+                                <p class="text-gray-600 dark:text-gray-300 text-sm">
+                                    {getExcerpt(article.content, 150)}
+                                </p>
+                            </div>
+                        </a>
+                    ))}
+                </div>
+
+                <a
+                    href="/articles"
+                    class="inline-block px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors"
+                >
+                    View all articles →
+                </a>
+            </div>
+        </section>
+    )
+}

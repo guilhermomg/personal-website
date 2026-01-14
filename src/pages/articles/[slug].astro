@@ -1,0 +1,96 @@
+---
+export const prerender = false;
+
+import Layout from "../../layouts/Layout.astro";
+import Navigation from "../../components/Navigation.astro";
+import Footer from "../../components/Footer.astro";
+import { createServerClient } from "../../lib/supabase";
+import { marked } from "marked";
+
+// Configure marked
+marked.setOptions({
+    breaks: true,
+    gfm: true,
+});
+
+const supabase = createServerClient(Astro.cookies);
+
+// Get article slug from URL params
+const { slug } = Astro.params;
+if (!slug) {
+    return new Response("Not Found", { status: 404 });
+}
+
+// Fetch article by slug (public can only see published)
+const { data: article, error: fetchError } = await supabase
+    .from("articles")
+    .select("id, title, slug, content, created_at, updated_at")
+    .eq("slug", slug)
+    .eq("status", "published")
+    .single();
+
+if (!article || fetchError) {
+    return new Response("Not Found", { status: 404 });
+}
+
+// Render markdown to HTML
+const renderedContent = marked.parse(article.content || "") as string;
+
+const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    });
+};
+---
+
+<Layout title={`${article.title} - Guilhermo González`}>
+    <Navigation />
+    <main
+        class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-20"
+    >
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+            <a
+                href="/articles"
+                class="inline-flex items-center text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 mb-8"
+            >
+                ← Back to Articles
+            </a>
+
+            <article
+                class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-8 md:p-12"
+            >
+                <header class="mb-8">
+                    <h1
+                        class="text-4xl font-bold text-gray-900 dark:text-white mb-4"
+                    >
+                        {article.title}
+                    </h1>
+                    <div
+                        class="flex items-center gap-4 text-gray-600 dark:text-gray-400"
+                    >
+                        <time datetime={article.created_at}>
+                            {formatDate(article.created_at)}
+                        </time>
+                        {
+                            article.updated_at &&
+                                article.updated_at !== article.created_at && (
+                                    <span>
+                                        • Updated{" "}
+                                        {formatDate(article.updated_at)}
+                                    </span>
+                                )
+                        }
+                    </div>
+                </header>
+
+                <div
+                    class="prose prose-lg prose-indigo dark:prose-invert max-w-none"
+                    set:html={renderedContent}
+                />
+            </article>
+        </div>
+    </main>
+    <Footer />
+</Layout>

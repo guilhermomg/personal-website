@@ -1,0 +1,85 @@
+---
+export const prerender = false;
+
+import Layout from "../layouts/Layout.astro";
+import Navigation from "../components/Navigation.astro";
+import Footer from "../components/Footer.astro";
+import { createServerClient } from "../lib/supabase";
+
+const supabase = createServerClient(Astro.cookies);
+
+const { data: articles } = await supabase
+    .from("articles")
+    .select("id, title, slug, content, created_at")
+    .eq("status", "published")
+    .order("created_at", { ascending: false });
+
+const stripMarkdown = (text: string) => {
+    return text.replace(/[#*`_\[\]()]/g, "").trim();
+};
+
+const getExcerpt = (content: string, length: number = 200) => {
+    const stripped = stripMarkdown(content);
+    return stripped.length > length
+        ? stripped.substring(0, length) + "..."
+        : stripped;
+};
+
+const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    });
+};
+---
+
+<Layout title="Articles - Guilhermo González">
+    <Navigation />
+    <main
+        class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-20"
+    >
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+            <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                Articles
+            </h1>
+            <p class="text-gray-600 dark:text-gray-400 mb-12">
+                Thoughts on web development, technology, and software
+                engineering.
+            </p>
+
+            {
+                articles && articles.length > 0 ? (
+                    <div class="space-y-6">
+                        {articles.map((article) => (
+                            <a
+                                href={`/articles/${article.slug}`}
+                                class="block bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl rounded-lg p-6 transition-shadow"
+                            >
+                                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                                    {article.title}
+                                </h2>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                                    {formatDate(article.created_at)}
+                                </p>
+                                <p class="text-gray-600 dark:text-gray-300">
+                                    {getExcerpt(article.content)}
+                                </p>
+                                <span class="inline-block mt-4 text-primary-600 dark:text-primary-400 font-semibold">
+                                    Read more →
+                                </span>
+                            </a>
+                        ))}
+                    </div>
+                ) : (
+                    <div class="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-12 text-center">
+                        <p class="text-gray-600 dark:text-gray-400">
+                            No articles published yet.
+                        </p>
+                    </div>
+                )
+            }
+        </div>
+    </main>
+    <Footer />
+</Layout>
