@@ -3,8 +3,15 @@ export const prerender = false;
 
 import Layout from "../../../../layouts/Layout.astro";
 import { createServerClient } from "../../../../lib/supabase";
+import { marked } from "marked";
 
 const adminEmail = import.meta.env.ADMIN_EMAIL;
+
+// Configure marked
+marked.setOptions({
+    breaks: true,
+    gfm: true,
+});
 
 const supabase = createServerClient(Astro.cookies);
 const {
@@ -39,6 +46,9 @@ const { data: article, error: fetchError } = await supabase
 if (!article || fetchError) {
     return new Response("Not Found", { status: 404 });
 }
+
+// Render markdown to HTML
+const renderedContent = marked.parse(article.content || "") as string;
 
 const formatDate = (value?: string | null) => {
     if (!value) return "Not set";
@@ -103,10 +113,9 @@ const formatDate = (value?: string | null) => {
                 </header>
 
                 <div
-                    class="prose prose-indigo dark:prose-invert max-w-none whitespace-pre-wrap"
-                >
-                    {article.content}
-                </div>
+                    class="prose prose-indigo dark:prose-invert max-w-none"
+                    set:html={renderedContent}
+                />
             </article>
         </div>
     </div>
