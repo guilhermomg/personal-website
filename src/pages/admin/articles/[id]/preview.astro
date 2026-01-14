@@ -1,0 +1,113 @@
+---
+export const prerender = false;
+
+import Layout from "../../../../layouts/Layout.astro";
+import { createServerClient } from "../../../../lib/supabase";
+
+const adminEmail = import.meta.env.ADMIN_EMAIL;
+
+const supabase = createServerClient(Astro.cookies);
+const {
+    data: { user },
+    error,
+} = await supabase.auth.getUser();
+
+// Redirect to login if not authenticated
+if (!user || error) {
+    return Astro.redirect("/admin/login");
+}
+
+if (user.email !== adminEmail) {
+    // Sign out and redirect
+    await supabase.auth.signOut();
+    return Astro.redirect("/admin/login?error=unauthorized");
+}
+
+// Get article ID from URL params
+const { id } = Astro.params;
+if (!id) {
+    return new Response("Not Found", { status: 404 });
+}
+
+// Fetch article by ID (preview allows any status)
+const { data: article, error: fetchError } = await supabase
+    .from("articles")
+    .select("id, title, slug, content, status, created_at, updated_at")
+    .eq("id", id)
+    .single();
+
+if (!article || fetchError) {
+    return new Response("Not Found", { status: 404 });
+}
+
+const formatDate = (value?: string | null) => {
+    if (!value) return "Not set";
+    const date = new Date(value);
+    return Number.isNaN(date.valueOf())
+        ? "Not set"
+        : date.toLocaleString("en-US", {
+              dateStyle: "medium",
+              timeStyle: "short",
+          });
+};
+---
+
+<Layout title={(article.title ?? "Preview") + " - Admin - Guilhermo González"}>
+    <div
+        class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800"
+    >
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="mb-8 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <a
+                        href="/admin/dashboard"
+                        class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+                    >
+                        ← Back to Dashboard
+                    </a>
+                    <a
+                        href={`/admin/articles/${article.id}/edit`}
+                        class="text-gray-700 dark:text-gray-200 hover:underline"
+                    >
+                        Edit Article
+                    </a>
+                </div>
+                <div class="flex items-center gap-2">
+                    {
+                        article.status === "draft" ? (
+                            <span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                                Draft Preview
+                            </span>
+                        ) : (
+                            <span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200">
+                                Published
+                            </span>
+                        )
+                    }
+                    <span class="text-sm text-gray-600 dark:text-gray-400">
+                        Updated {formatDate(article.updated_at)}
+                    </span>
+                </div>
+            </div>
+
+            <article class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-8">
+                <header class="mb-6">
+                    <h1
+                        class="text-3xl font-bold text-gray-900 dark:text-white"
+                    >
+                        {article.title}
+                    </h1>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                        Created {formatDate(article.created_at)}
+                    </p>
+                </header>
+
+                <div
+                    class="prose prose-indigo dark:prose-invert max-w-none whitespace-pre-wrap"
+                >
+                    {article.content}
+                </div>
+            </article>
+        </div>
+    </div>
+</Layout>
