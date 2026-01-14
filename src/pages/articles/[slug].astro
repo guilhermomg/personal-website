@@ -67,21 +67,28 @@ const formatDate = (date: string) => {
                     >
                         {article.title}
                     </h1>
-                    <div class="flex items-center gap-4 text-gray-600 dark:text-gray-400">
+                    <div
+                        class="flex items-center gap-4 text-gray-600 dark:text-gray-400"
+                    >
                         <time datetime={article.created_at}>
                             {formatDate(article.created_at)}
                         </time>
-                        {article.updated_at && article.updated_at !== article.created_at && (
-                            <span>• Updated {formatDate(article.updated_at)}</span>
-                        )}
+                        {
+                            article.updated_at &&
+                                article.updated_at !== article.created_at && (
+                                    <span>
+                                        • Updated{" "}
+                                        {formatDate(article.updated_at)}
+                                    </span>
+                                )
+                        }
                     </div>
                 </header>
 
                 <div
                     class="prose prose-lg prose-indigo dark:prose-invert max-w-none"
                     set:html={renderedContent}
-                >
-                </div>
+                />
             </article>
         </div>
     </main>
