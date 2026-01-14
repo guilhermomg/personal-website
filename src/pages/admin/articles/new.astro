@@ -89,20 +89,36 @@ const userEmail = user.email;
 
                     <!-- Content -->
                     <div>
-                        <label
-                            for="content"
-                            class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                        >
-                            Content (Markdown)
-                        </label>
-                        <textarea
-                            id="content"
-                            name="content"
-                            required
-                            rows="12"
-                            placeholder="Write your article content in Markdown..."
-                            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono text-sm"
-                        ></textarea>
+                        <div class="flex items-center justify-between mb-2">
+                            <label
+                                for="content"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white"
+                            >
+                                Content (Markdown)
+                            </label>
+                            <button
+                                type="button"
+                                id="toggle-preview"
+                                class="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-semibold"
+                            >
+                                Preview
+                            </button>
+                        </div>
+                        <div class="grid gap-4" id="content-container">
+                            <textarea
+                                id="content"
+                                name="content"
+                                required
+                                rows="12"
+                                placeholder="Write your article content in Markdown..."
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono text-sm"
+                            ></textarea>
+                            <div
+                                id="preview"
+                                class="hidden w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 prose prose-indigo dark:prose-invert max-w-none min-h-[300px]"
+                            >
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Status -->
@@ -161,10 +177,14 @@ const userEmail = user.email;
 
     <script>
         import { supabase } from "../../../lib/supabase";
+        import { marked } from "marked";
 
         const form = document.getElementById("article-form") as HTMLFormElement;
         const titleInput = document.getElementById("title") as HTMLInputElement;
         const slugInput = document.getElementById("slug") as HTMLInputElement;
+        const contentTextarea = document.getElementById(
+            "content"
+        ) as HTMLTextAreaElement;
         const saveBtn = document.getElementById(
             "save-btn"
         ) as HTMLButtonElement;
@@ -174,6 +194,50 @@ const userEmail = user.email;
         const successMessage = document.getElementById(
             "success-message"
         ) as HTMLDivElement;
+        const togglePreviewBtn = document.getElementById(
+            "toggle-preview"
+        ) as HTMLButtonElement;
+        const previewDiv = document.getElementById("preview") as HTMLDivElement;
+        const contentContainer = document.getElementById(
+            "content-container"
+        ) as HTMLDivElement;
+
+        let isPreviewMode = false;
+
+        // Configure marked
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+        });
+
+        // Toggle preview
+        if (
+            togglePreviewBtn &&
+            contentTextarea &&
+            previewDiv &&
+            contentContainer
+        ) {
+            togglePreviewBtn.addEventListener("click", () => {
+                isPreviewMode = !isPreviewMode;
+
+                if (isPreviewMode) {
+                    // Show preview
+                    togglePreviewBtn.textContent = "Edit";
+                    contentTextarea.classList.add("hidden");
+                    previewDiv.classList.remove("hidden");
+                    contentContainer.classList.remove("gap-4");
+
+                    // Render markdown
+                    const markdownText = contentTextarea.value;
+                    previewDiv.innerHTML = marked.parse(markdownText) as string;
+                } else {
+                    // Show editor
+                    togglePreviewBtn.textContent = "Preview";
+                    contentTextarea.classList.remove("hidden");
+                    previewDiv.classList.add("hidden");
+                }
+            });
+        }
 
         // Auto-generate slug from title
         function generateSlug(title: string): string {
@@ -215,7 +279,7 @@ const userEmail = user.email;
                     const formData = new FormData(form);
                     const title = (formData.get("title") as string)?.trim();
                     const slug = (formData.get("slug") as string)?.trim();
-                    const content = (formData.get("content") as string)?.trim();
+                    const content = contentTextarea.value.trim();
                     const status = formData.get("status") as string;
 
                     if (!title || !slug || !content) {
