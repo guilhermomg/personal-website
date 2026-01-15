@@ -32,14 +32,16 @@ const userEmail = user.email;
         class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800"
     >
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div class="mb-8 flex items-center gap-4">
+            <div class="mb-8">
                 <a
                     href="/admin/dashboard"
                     class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
                 >
                     ← Back to Dashboard
                 </a>
-                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+                <h1
+                    class="text-3xl font-bold text-gray-900 dark:text-white mt-4"
+                >
                     Create New Article
                 </h1>
             </div>
@@ -139,6 +141,151 @@ const userEmail = user.email;
                         </select>
                     </div>
 
+                    <!-- SEO Metadata Section (Collapsible) -->
+                    <div
+                        class="border-t border-gray-200 dark:border-gray-700 pt-6 mt-6"
+                    >
+                        <button
+                            type="button"
+                            id="toggle-seo"
+                            class="flex items-center justify-between w-full text-left mb-4 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                        >
+                            <h3
+                                class="text-lg font-semibold text-gray-900 dark:text-white"
+                            >
+                                SEO & Social Metadata
+                            </h3>
+                            <svg
+                                id="seo-chevron"
+                                class="w-5 h-5 text-gray-500 dark:text-gray-400 transform transition-transform"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+
+                        <div id="seo-section" class="hidden space-y-6">
+                            <!-- Description -->
+                            <div>
+                                <label
+                                    for="description"
+                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                >
+                                    Description (for social media cards)
+                                </label>
+                                <textarea
+                                    id="description"
+                                    name="description"
+                                    required
+                                    maxlength="160"
+                                    rows="2"
+                                    placeholder="Brief description for LinkedIn/Twitter cards (max 160 chars)"
+                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                ></textarea>
+                                <div
+                                    class="flex justify-between items-center mt-1"
+                                >
+                                    <p
+                                        class="text-xs text-gray-600 dark:text-gray-400"
+                                    >
+                                        Used in social media previews and search
+                                        results
+                                    </p>
+                                    <span
+                                        id="desc-counter"
+                                        class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                                    >
+                                        0 / 160
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Featured Image -->
+                            <div>
+                                <label
+                                    for="featured_image"
+                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                >
+                                    Featured Image URL
+                                </label>
+                                <input
+                                    type="url"
+                                    id="featured_image"
+                                    name="featured_image"
+                                    placeholder="https://example.com/image.jpg (1200x628 recommended)"
+                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                />
+                                <p
+                                    class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+                                >
+                                    Image shown in social media cards. Use
+                                    1200×628px for best results.
+                                </p>
+                            </div>
+
+                            <!-- Keywords -->
+                            <div>
+                                <label
+                                    for="keywords"
+                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                >
+                                    Keywords
+                                </label>
+                                <input
+                                    type="text"
+                                    id="keywords"
+                                    name="keywords"
+                                    placeholder="web development, seo, astro, typescript"
+                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                />
+                                <p
+                                    class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+                                >
+                                    Comma-separated keywords for SEO
+                                </p>
+                            </div>
+
+                            <!-- Excerpt -->
+                            <div>
+                                <label
+                                    for="excerpt"
+                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                >
+                                    Excerpt (optional)
+                                </label>
+                                <textarea
+                                    id="excerpt"
+                                    name="excerpt"
+                                    maxlength="200"
+                                    rows="2"
+                                    placeholder="Custom excerpt for article listings (defaults to description if empty)"
+                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                ></textarea>
+                                <div
+                                    class="flex justify-between items-center mt-1"
+                                >
+                                    <p
+                                        class="text-xs text-gray-600 dark:text-gray-400"
+                                    >
+                                        Shown on article listing pages
+                                    </p>
+                                    <span
+                                        id="excerpt-counter"
+                                        class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                                    >
+                                        0 / 200
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Actions -->
                     <div class="flex gap-3 pt-4">
                         <button
@@ -201,8 +348,79 @@ const userEmail = user.email;
         const contentContainer = document.getElementById(
             "content-container"
         ) as HTMLDivElement;
+        const descriptionTextarea = document.getElementById(
+            "description"
+        ) as HTMLTextAreaElement;
+        const descCounter = document.getElementById(
+            "desc-counter"
+        ) as HTMLSpanElement;
+        const excerptTextarea = document.getElementById(
+            "excerpt"
+        ) as HTMLTextAreaElement;
+        const excerptCounter = document.getElementById(
+            "excerpt-counter"
+        ) as HTMLSpanElement;
+        const toggleSeoBtn = document.getElementById(
+            "toggle-seo"
+        ) as HTMLButtonElement;
+        const seoSection = document.getElementById(
+            "seo-section"
+        ) as HTMLDivElement;
+        const seoChevron = document.getElementById(
+            "seo-chevron"
+        ) as HTMLElement;
 
         let isPreviewMode = false;
+        let isSeoExpanded = false;
+
+        // Calculate read time from markdown content (assumes 200 words per minute)
+        function calculateReadTime(markdown: string): number {
+            const text = markdown.replace(/[#*`_~\[\]()]/g, "").trim();
+            const wordCount = text
+                .split(/\s+/)
+                .filter((word) => word.length > 0).length;
+            return Math.max(1, Math.round(wordCount / 200));
+        }
+
+        // Character counters
+        if (descriptionTextarea && descCounter) {
+            descriptionTextarea.addEventListener("input", () => {
+                const length = descriptionTextarea.value.length;
+                descCounter.textContent = `${length} / 160`;
+                if (length > 150) {
+                    descCounter.classList.add(
+                        "text-amber-600",
+                        "dark:text-amber-400"
+                    );
+                } else {
+                    descCounter.classList.remove(
+                        "text-amber-600",
+                        "dark:text-amber-400"
+                    );
+                }
+            });
+        }
+
+        if (excerptTextarea && excerptCounter) {
+            excerptTextarea.addEventListener("input", () => {
+                const length = excerptTextarea.value.length;
+                excerptCounter.textContent = `${length} / 200`;
+            });
+        }
+
+        // Toggle SEO section
+        if (toggleSeoBtn && seoSection && seoChevron) {
+            toggleSeoBtn.addEventListener("click", () => {
+                isSeoExpanded = !isSeoExpanded;
+                if (isSeoExpanded) {
+                    seoSection.classList.remove("hidden");
+                    seoChevron.classList.add("rotate-180");
+                } else {
+                    seoSection.classList.add("hidden");
+                    seoChevron.classList.remove("rotate-180");
+                }
+            });
+        }
 
         // Configure marked
         marked.setOptions({
@@ -281,9 +499,30 @@ const userEmail = user.email;
                     const slug = (formData.get("slug") as string)?.trim();
                     const content = contentTextarea.value.trim();
                     const status = formData.get("status") as string;
+                    const description = (
+                        formData.get("description") as string
+                    )?.trim();
+                    const featured_image =
+                        (formData.get("featured_image") as string)?.trim() ||
+                        null;
+                    const keywords =
+                        (formData.get("keywords") as string)?.trim() || null;
+                    const excerpt =
+                        (formData.get("excerpt") as string)?.trim() || null;
 
-                    if (!title || !slug || !content) {
-                        throw new Error("All fields are required");
+                    // Calculate read time from content
+                    const read_time = calculateReadTime(content);
+
+                    if (!title || !slug || !content || !description) {
+                        throw new Error(
+                            "Title, slug, content, and description are required"
+                        );
+                    }
+
+                    if (description.length > 160) {
+                        throw new Error(
+                            "Description must be 160 characters or less"
+                        );
                     }
 
                     // Check if slug already exists
@@ -308,6 +547,11 @@ const userEmail = user.email;
                                 slug,
                                 content,
                                 status,
+                                description,
+                                featured_image,
+                                keywords,
+                                excerpt,
+                                read_time,
                             },
                         ])
                         .select()
