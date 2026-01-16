@@ -24,7 +24,9 @@ if (!slug) {
 // Fetch article by slug (public can only see published)
 const { data: article, error: fetchError } = await supabase
     .from("articles")
-    .select("id, title, slug, content, created_at, updated_at")
+    .select(
+        "id, title, slug, content, created_at, updated_at, published_at, description, featured_image, keywords, author_name, excerpt, read_time"
+    )
     .eq("slug", slug)
     .eq("status", "published")
     .single();
@@ -36,6 +38,21 @@ if (!article || fetchError) {
 // Render markdown to HTML
 const renderedContent = marked.parse(article.content || "") as string;
 
+// Derive description for SEO if missing
+const deriveDescription = () => {
+    if (article.description) return article.description;
+    if (article.excerpt) return article.excerpt;
+    const text = (article.content ?? "")
+        .replace(/[#*`_~\[\]()>-]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    return text.slice(0, 160);
+};
+
+const seoDescription = deriveDescription();
+const seoImage = article.featured_image ?? "/og-image.jpg";
+const seoKeywords = article.keywords ?? undefined;
+
 const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString("en-US", {
         year: "numeric",
@@ -45,7 +62,16 @@ const formatDate = (date: string) => {
 };
 ---
 
-<Layout title={`${article.title} - Guilhermo González`}>
+<Layout
+    title={`${article.title} - ${article.author_name}`}
+    description={seoDescription}
+    image={seoImage}
+    keywords={seoKeywords}
+    canonical={`/articles/${article.slug}`}
+    ogType="article"
+    publishedTime={article.published_at ?? article.created_at}
+    modifiedTime={article.updated_at}
+>
     <Navigation />
     <main
         class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-20"
@@ -68,11 +94,19 @@ const formatDate = (date: string) => {
                         {article.title}
                     </h1>
                     <div
-                        class="flex items-center gap-4 text-gray-600 dark:text-gray-400"
+                        class="flex flex-wrap items-center gap-4 text-gray-600 dark:text-gray-400"
                     >
                         <time datetime={article.created_at}>
                             {formatDate(article.created_at)}
                         </time>
+                        {
+                            article.read_time ? (
+                                <>
+                                    <span aria-hidden="true">•</span>
+                                    <span>{article.read_time} min read</span>
+                                </>
+                            ) : null
+                        }
                         {
                             article.updated_at &&
                                 article.updated_at !== article.created_at && (

@@ -4,7 +4,7 @@ export const prerender = false;
 import Layout from "../../../layouts/Layout.astro";
 import { createServerClient } from "../../../lib/supabase";
 
-const adminEmail = import.meta.env.ADMIN_EMAIL;
+const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
 
 const supabase = createServerClient(Astro.cookies);
 const {
@@ -17,7 +17,11 @@ if (!user || error) {
     return Astro.redirect("/admin/login");
 }
 
-if (user.email !== adminEmail) {
+// Get GitHub username from user metadata
+const userGithubUsername =
+    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+
+if (userGithubUsername !== adminGithubUsername) {
     // Sign out and redirect
     await supabase.auth.signOut();
     return Astro.redirect("/admin/login?error=unauthorized");
@@ -27,7 +31,9 @@ if (user.email !== adminEmail) {
 const userEmail = user.email;
 ---
 
-<Layout title="New Article - Admin - Guilhermo González">
+<Layout
+    title={`New Article - Admin - ${import.meta.env.SITE_AUTHOR || "Admin"}`}
+>
     <div
         class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800"
     >
@@ -209,24 +215,81 @@ const userEmail = user.email;
                             <!-- Featured Image -->
                             <div>
                                 <label
-                                    for="featured_image"
                                     class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
                                 >
-                                    Featured Image URL
+                                    Featured Image
                                 </label>
-                                <input
-                                    type="url"
-                                    id="featured_image"
-                                    name="featured_image"
-                                    placeholder="https://example.com/image.jpg (1200x628 recommended)"
-                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                />
-                                <p
-                                    class="text-xs text-gray-600 dark:text-gray-400 mt-1"
-                                >
-                                    Image shown in social media cards. Use
-                                    1200×628px for best results.
-                                </p>
+
+                                <!-- File Upload -->
+                                <div class="mb-3">
+                                    <label
+                                        for="featured_image_file"
+                                        class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
+                                    >
+                                        Upload Image
+                                    </label>
+                                    <input
+                                        type="file"
+                                        id="featured_image_file"
+                                        name="featured_image_file"
+                                        accept="image/jpeg,image/png"
+                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-primary-900/40 dark:file:text-primary-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    />
+                                    <p
+                                        class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+                                    >
+                                        JPG or PNG. Max 1MB. Recommended:
+                                        1200×628px
+                                    </p>
+                                </div>
+
+                                <!-- OR separator -->
+                                <div class="flex items-center gap-3 my-3">
+                                    <div
+                                        class="flex-1 h-px bg-gray-300 dark:bg-gray-600"
+                                    >
+                                    </div>
+                                    <span
+                                        class="text-xs text-gray-500 dark:text-gray-400"
+                                        >OR</span
+                                    >
+                                    <div
+                                        class="flex-1 h-px bg-gray-300 dark:bg-gray-600"
+                                    >
+                                    </div>
+                                </div>
+
+                                <!-- URL Input -->
+                                <div>
+                                    <label
+                                        for="featured_image"
+                                        class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
+                                    >
+                                        Image URL
+                                    </label>
+                                    <input
+                                        type="url"
+                                        id="featured_image"
+                                        name="featured_image"
+                                        placeholder="https://example.com/image.jpg"
+                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    />
+                                    <p
+                                        class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+                                    >
+                                        Paste an existing image URL
+                                    </p>
+                                </div>
+
+                                <!-- Image Preview -->
+                                <div id="image-preview" class="mt-3 hidden">
+                                    <img
+                                        id="preview-img"
+                                        src=""
+                                        alt="Preview"
+                                        class="w-full max-w-md h-48 object-cover rounded-lg border border-gray-300 dark:border-gray-600"
+                                    />
+                                </div>
                             </div>
 
                             <!-- Keywords -->
@@ -369,6 +432,18 @@ const userEmail = user.email;
         const seoChevron = document.getElementById(
             "seo-chevron"
         ) as HTMLElement;
+        const featuredImageInput = document.getElementById(
+            "featured_image"
+        ) as HTMLInputElement;
+        const featuredImageFileInput = document.getElementById(
+            "featured_image_file"
+        ) as HTMLInputElement;
+        const imagePreview = document.getElementById(
+            "image-preview"
+        ) as HTMLDivElement;
+        const previewImg = document.getElementById(
+            "preview-img"
+        ) as HTMLImageElement;
 
         let isPreviewMode = false;
         let isSeoExpanded = false;
@@ -418,6 +493,39 @@ const userEmail = user.email;
                 } else {
                     seoSection.classList.add("hidden");
                     seoChevron.classList.remove("rotate-180");
+                }
+            });
+        }
+
+        if (featuredImageInput && imagePreview && previewImg) {
+            featuredImageInput.addEventListener("input", () => {
+                const url = featuredImageInput.value.trim();
+                if (url) {
+                    previewImg.src = url;
+                    imagePreview.classList.remove("hidden");
+                } else {
+                    imagePreview.classList.add("hidden");
+                }
+            });
+
+            previewImg.addEventListener("error", () => {
+                imagePreview.classList.add("hidden");
+            });
+        }
+
+        // Handle file input change to show preview
+        if (featuredImageFileInput && imagePreview && previewImg) {
+            featuredImageFileInput.addEventListener("change", () => {
+                const file = featuredImageFileInput.files?.[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        previewImg.src = e.target?.result as string;
+                        imagePreview.classList.remove("hidden");
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    imagePreview.classList.add("hidden");
                 }
             });
         }
@@ -502,13 +610,14 @@ const userEmail = user.email;
                     const description = (
                         formData.get("description") as string
                     )?.trim();
-                    const featured_image =
+                    let featured_image =
                         (formData.get("featured_image") as string)?.trim() ||
                         null;
                     const keywords =
                         (formData.get("keywords") as string)?.trim() || null;
                     const excerpt =
                         (formData.get("excerpt") as string)?.trim() || null;
+                    const imageFile = featuredImageFileInput.files?.[0];
 
                     // Calculate read time from content
                     const read_time = calculateReadTime(content);
@@ -519,10 +628,58 @@ const userEmail = user.email;
                         );
                     }
 
+                    // Upload image to Supabase Storage if file is provided
+                    if (imageFile) {
+                        // Validate file size (1MB max)
+                        if (imageFile.size > 1 * 1024 * 1024) {
+                            throw new Error("Image file must be less than 1MB");
+                        }
+
+                        // Generate unique filename
+                        const fileExt = imageFile.name.split(".").pop();
+                        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+                        const filePath = `articles/${fileName}`;
+
+                        // Upload to Supabase Storage
+                        const { data: uploadData, error: uploadError } =
+                            await supabase.storage
+                                .from("personal-website")
+                                .upload(filePath, imageFile, {
+                                    contentType: imageFile.type,
+                                    upsert: false,
+                                });
+
+                        if (uploadError) {
+                            throw new Error(
+                                `Image upload failed: ${uploadError.message}`
+                            );
+                        }
+
+                        // Get public URL
+                        const { data: urlData } = supabase.storage
+                            .from("personal-website")
+                            .getPublicUrl(filePath);
+
+                        featured_image = urlData.publicUrl;
+                    }
+
                     if (description.length > 160) {
                         throw new Error(
                             "Description must be 160 characters or less"
                         );
+                    }
+
+                    // Validate keywords format (optional but must be comma-separated if provided)
+                    if (keywords && keywords.trim()) {
+                        const keywordList = keywords
+                            .split(",")
+                            .map((k) => k.trim())
+                            .filter((k) => k.length > 0);
+                        if (keywordList.length === 0) {
+                            throw new Error(
+                                "Keywords must be comma-separated values"
+                            );
+                        }
                     }
 
                     // Check if slug already exists
@@ -552,6 +709,10 @@ const userEmail = user.email;
                                 keywords,
                                 excerpt,
                                 read_time,
+                                published_at:
+                                    status === "published"
+                                        ? new Date().toISOString()
+                                        : null,
                             },
                         ])
                         .select()

@@ -5,7 +5,7 @@ import Layout from "../../../../layouts/Layout.astro";
 import { createServerClient } from "../../../../lib/supabase";
 import { marked } from "marked";
 
-const adminEmail = import.meta.env.ADMIN_EMAIL;
+const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
 
 // Configure marked
 marked.setOptions({
@@ -24,7 +24,11 @@ if (!user || error) {
     return Astro.redirect("/admin/login");
 }
 
-if (user.email !== adminEmail) {
+// Get GitHub username from user metadata
+const userGithubUsername =
+    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+
+if (userGithubUsername !== adminGithubUsername) {
     // Sign out and redirect
     await supabase.auth.signOut();
     return Astro.redirect("/admin/login?error=unauthorized");
@@ -39,7 +43,9 @@ if (!id) {
 // Fetch article by ID (preview allows any status)
 const { data: article, error: fetchError } = await supabase
     .from("articles")
-    .select("id, title, slug, content, status, created_at, updated_at")
+    .select(
+        "id, title, slug, content, status, created_at, updated_at, description, featured_image, keywords, excerpt, read_time"
+    )
     .eq("id", id)
     .single();
 
@@ -62,7 +68,9 @@ const formatDate = (value?: string | null) => {
 };
 ---
 
-<Layout title={(article.title ?? "Preview") + " - Admin - Guilhermo González"}>
+<Layout
+    title={`${article.title ?? "Preview"} - Admin - ${import.meta.env.SITE_AUTHOR || "Admin"}`}
+>
     <div
         class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800"
     >
@@ -98,6 +106,76 @@ const formatDate = (value?: string | null) => {
                         Updated {formatDate(article.updated_at)}
                     </span>
                 </div>
+            </div>
+
+            <!-- OG Card Preview -->
+            <div
+                class="mb-8 bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6"
+            >
+                <h2
+                    class="text-lg font-semibold text-gray-900 dark:text-white mb-4"
+                >
+                    Social Media Preview (LinkedIn/Twitter)
+                </h2>
+                <div
+                    class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden max-w-xl"
+                >
+                    {
+                        article.featured_image ? (
+                            <img
+                                src={article.featured_image}
+                                alt="OG preview"
+                                class="w-full h-64 object-cover bg-gray-100 dark:bg-gray-700"
+                                onerror="this.src='/og-image.jpg'"
+                            />
+                        ) : (
+                            <div class="w-full h-64 bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400">
+                                No featured image
+                            </div>
+                        )
+                    }
+                    <div class="p-4 bg-gray-50 dark:bg-gray-900">
+                        <h3
+                            class="font-semibold text-gray-900 dark:text-white text-lg line-clamp-2"
+                        >
+                            {article.title}
+                        </h3>
+                        <p
+                            class="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2"
+                        >
+                            {
+                                article.description ||
+                                    article.excerpt ||
+                                    "No description provided"
+                            }
+                        </p>
+                        <p
+                            class="text-xs text-gray-500 dark:text-gray-500 mt-2"
+                        >
+                            gonzalez.dev.br
+                        </p>
+                    </div>
+                </div>
+                {
+                    article.keywords && (
+                        <div class="mt-4">
+                            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Keywords:
+                            </p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                {article.keywords}
+                            </p>
+                        </div>
+                    )
+                }
+                {
+                    article.read_time && (
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                            Estimated read time:{" "}
+                            <strong>{article.read_time} minutes</strong>
+                        </p>
+                    )
+                }
             </div>
 
             <article class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-8">
