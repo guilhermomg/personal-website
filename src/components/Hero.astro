@@ -8,11 +8,6 @@ const t = useTranslations(lang);
 const githubUsername = import.meta.env.GITHUB_USERNAME;
 const siteAuthor = import.meta.env.SITE_AUTHOR;
 
-// Don't render Hero if neither GitHub username nor site author is defined
-if (!githubUsername && !siteAuthor) {
-  return null;
-}
-
 // Get initials from site author if GitHub username is not available
 const getInitials = (name: string | undefined): string => {
   if (!name) return "";
@@ -25,8 +20,10 @@ const getInitials = (name: string | undefined): string => {
 };
 
 const initials = getInitials(siteAuthor);
+const shouldRender = githubUsername || siteAuthor;
 ---
 
+{shouldRender && (
 <section id="home" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-24">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
     <div class="space-y-8">
@@ -125,3 +122,4 @@ const initials = getInitials(siteAuthor);
     </div>
   </div>
 </section>
+)}

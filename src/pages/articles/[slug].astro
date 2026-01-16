@@ -25,7 +25,7 @@ if (!slug) {
 const { data: article, error: fetchError } = await supabase
     .from("articles")
     .select(
-        "id, title, slug, content, created_at, updated_at, published_at, description, featured_image, keywords, author_name, excerpt, read_time"
+        "id, title, slug, content, created_at, updated_at, published_at, description, featured_image, keywords, excerpt, read_time"
     )
     .eq("slug", slug)
     .eq("status", "published")
@@ -37,6 +37,9 @@ if (!article || fetchError) {
 
 // Render markdown to HTML
 const renderedContent = marked.parse(article.content || "") as string;
+
+// Use SITE_AUTHOR as fallback for author name
+const authorName = import.meta.env.SITE_AUTHOR || "Blog";
 
 // Derive description for SEO if missing
 const deriveDescription = () => {
@@ -63,7 +66,7 @@ const formatDate = (date: string) => {
 ---
 
 <Layout
-    title={`${article.title} - ${article.author_name}`}
+    title={`${article.title} - ${authorName}`}
     description={seoDescription}
     image={seoImage}
     keywords={seoKeywords}
