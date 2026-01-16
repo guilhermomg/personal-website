@@ -16,7 +16,7 @@ export interface Props {
 
 const {
     title,
-    description = import.meta.env.SITE_DESCRIPTION,
+    description = import.meta.env.SITE_DESCRIPTION || "",
     image = "/og-image.jpg",
     keywords = import.meta.env.SITE_KEYWORDS,
     author = import.meta.env.SITE_AUTHOR || "No author",
