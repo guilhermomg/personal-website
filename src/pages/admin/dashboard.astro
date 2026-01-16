@@ -4,7 +4,7 @@ export const prerender = false;
 import Layout from "../../layouts/Layout.astro";
 import { createServerClient } from "../../lib/supabase";
 
-const adminEmail = import.meta.env.ADMIN_EMAIL;
+const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
 
 const supabase = createServerClient(Astro.cookies);
 const {
@@ -17,7 +17,10 @@ if (!user || error) {
     return Astro.redirect("/admin/login");
 }
 
-if (user.email !== adminEmail) {
+const userGithubUsername =
+    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+
+if (userGithubUsername !== adminGithubUsername) {
     // Sign out and redirect
     await supabase.auth.signOut();
     return Astro.redirect("/admin/login?error=unauthorized");
@@ -57,7 +60,7 @@ const statusColors = {
 };
 ---
 
-<Layout title="Admin Dashboard - Guilhermo González">
+<Layout title={`Admin Dashboard - ${import.meta.env.SITE_AUTHOR || "Admin"}`}>
     <div
         class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800"
     >

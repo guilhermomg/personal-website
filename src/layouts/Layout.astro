@@ -1,23 +1,29 @@
 ---
-import { getLangFromUrl, useTranslations } from '../i18n/utils';
-import Analytics from '@vercel/analytics/astro';
+import { getLangFromUrl, useTranslations } from "../i18n/utils";
+import Analytics from "@vercel/analytics/astro";
 
 export interface Props {
-  title: string;
-  description?: string;
-  image?: string;
-  keywords?: string;
-  author?: string;
-  canonical?: string;
+    title: string;
+    description?: string;
+    image?: string;
+    keywords?: string;
+    author?: string;
+    canonical?: string;
+    ogType?: string;
+    publishedTime?: string;
+    modifiedTime?: string;
 }
 
-const { 
-  title, 
-  description = "Guilhermo González - Full-Stack Developer passionate about creating innovative digital solutions and exceptional user experiences.",
-  image = "/og-image.jpg",
-  keywords = "Full-Stack Developer, Web Developer, JavaScript, TypeScript, React, Node.js, Python, Software Engineer",
-  author = "Guilhermo González",
-  canonical
+const {
+    title,
+    description = import.meta.env.SITE_DESCRIPTION || "",
+    image = "/og-image.jpg",
+    keywords = import.meta.env.SITE_KEYWORDS || "",
+    author = import.meta.env.SITE_AUTHOR || "No author",
+    canonical,
+    ogType = "website",
+    publishedTime,
+    modifiedTime,
 } = Astro.props;
 
 const lang = getLangFromUrl(Astro.url);
@@ -27,175 +33,263 @@ const t = useTranslations(lang);
 const googleVerification = import.meta.env.GOOGLE_VERIFICATION_CODE;
 
 // Get the full URL for Open Graph and canonical
-const currentUrl = new URL(Astro.url.pathname, Astro.site || 'https://gonzalez.dev.br');
-const canonicalUrl = canonical ? new URL(canonical, Astro.site || 'https://gonzalez.dev.br') : currentUrl;
-const imageUrl = new URL(image, Astro.site || 'https://gonzalez.dev.br');
+const currentUrl = new URL(
+    Astro.url.pathname,
+    Astro.site || "https://gonzalez.dev.br"
+);
+const canonicalUrl = canonical
+    ? new URL(canonical, Astro.site || "https://gonzalez.dev.br")
+    : currentUrl;
+const imageUrl = new URL(image, Astro.site || "https://gonzalez.dev.br");
 
 // Generate hreflang URLs
-const baseUrl = Astro.site || 'https://gonzalez.dev.br';
+const baseUrl = Astro.site || "https://gonzalez.dev.br";
 const currentPath = Astro.url.pathname;
-const isDefaultLang = lang === 'en';
-const pathWithoutLang = isDefaultLang ? currentPath : currentPath.replace(`/${lang}`, '') || '/';
+const isDefaultLang = lang === "en";
+const pathWithoutLang = isDefaultLang
+    ? currentPath
+    : currentPath.replace(`/${lang}`, "") || "/";
 
 const hreflangs = [
-  { lang: 'en', url: pathWithoutLang },
-  { lang: 'fr', url: pathWithoutLang === '/' ? '/fr/' : `/fr${pathWithoutLang}` },
-  { lang: 'pt', url: pathWithoutLang === '/' ? '/pt/' : `/pt${pathWithoutLang}` }
+    { lang: "en", url: pathWithoutLang },
+    {
+        lang: "fr",
+        url: pathWithoutLang === "/" ? "/fr/" : `/fr${pathWithoutLang}`,
+    },
+    {
+        lang: "pt",
+        url: pathWithoutLang === "/" ? "/pt/" : `/pt${pathWithoutLang}`,
+    },
 ];
 
 // Additional hreflang entries for specific geographic targeting
 const additionalHreflangs = [
-  { lang: 'en-US', url: pathWithoutLang },           // English - United States
-  { lang: 'en-CA', url: pathWithoutLang },           // English - Canada
-  { lang: 'fr-FR', url: pathWithoutLang === '/' ? '/fr/' : `/fr${pathWithoutLang}` }, // French - France
-  { lang: 'fr-CA', url: pathWithoutLang === '/' ? '/fr/' : `/fr${pathWithoutLang}` }, // French - Canada
-  { lang: 'pt-BR', url: pathWithoutLang === '/' ? '/pt/' : `/pt${pathWithoutLang}` }, // Portuguese - Brazil
-  { lang: 'pt-PT', url: pathWithoutLang === '/' ? '/pt/' : `/pt${pathWithoutLang}` }  // Portuguese - Portugal
+    { lang: "en-US", url: pathWithoutLang }, // English - United States
+    { lang: "en-CA", url: pathWithoutLang }, // English - Canada
+    {
+        lang: "fr-FR",
+        url: pathWithoutLang === "/" ? "/fr/" : `/fr${pathWithoutLang}`,
+    }, // French - France
+    {
+        lang: "fr-CA",
+        url: pathWithoutLang === "/" ? "/fr/" : `/fr${pathWithoutLang}`,
+    }, // French - Canada
+    {
+        lang: "pt-BR",
+        url: pathWithoutLang === "/" ? "/pt/" : `/pt${pathWithoutLang}`,
+    }, // Portuguese - Brazil
+    {
+        lang: "pt-PT",
+        url: pathWithoutLang === "/" ? "/pt/" : `/pt${pathWithoutLang}`,
+    }, // Portuguese - Portugal
 ];
 ---
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang={lang} class="scroll-smooth">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="generator" content={Astro.generator} />
-    
-    <!-- Primary Meta Tags -->
-    <title>{title}</title>
-    <meta name="title" content={title} />
-    <meta name="description" content={description} />
-    <meta name="keywords" content={keywords} />
-    <meta name="author" content={author} />
-    <meta name="robots" content="index, follow" />
-    <meta name="language" content={lang} />
-    
-    <!-- Canonical URL -->
-    <link rel="canonical" href={canonicalUrl.href} />
-    
-    <!-- Hreflang for internationalization -->
-    {hreflangs.map(({ lang: hreflang, url }) => (
-      <link rel="alternate" hreflang={hreflang} href={new URL(url, baseUrl).href} />
-    ))}
-    
-    <link rel="alternate" hreflang="x-default" href={new URL(pathWithoutLang, baseUrl).href} />
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="generator" content={Astro.generator} />
 
-    <!-- Additional geographic-specific hreflang tags -->
-    {additionalHreflangs.map(({ lang: hreflang, url }) => (
-      <link rel="alternate" hreflang={hreflang} href={new URL(url, baseUrl).href} />
-    ))}
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/favicon.svg" />
-    
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content={currentUrl.href} />
-    <meta property="og:title" content={title} />
-    <meta property="og:description" content={description} />
-    <meta property="og:image" content={imageUrl.href} />
-    <meta property="og:site_name" content="Guilhermo González" />
-    <meta property="og:locale" content={lang === 'en' ? 'en_US' : lang === 'pt' ? 'pt_BR' : 'fr_FR'} />
+        <!-- Primary Meta Tags -->
+        <title>{title}</title>
+        <meta name="title" content={title} />
+        <meta name="description" content={description} />
+        <meta name="keywords" content={keywords} />
+        <meta name="author" content={author} />
+        <meta name="robots" content="index, follow" />
+        <meta name="language" content={lang} />
 
-    <!-- Additional locale alternatives for broader geographic targeting -->
-    {lang === 'en' && <meta property="og:locale:alternate" content="en_CA" />}
-    {lang === 'fr' && <meta property="og:locale:alternate" content="fr_CA" />}
-    {lang === 'pt' && <meta property="og:locale:alternate" content="pt_PT" />}
-    
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content={currentUrl.href} />
-    <meta property="twitter:title" content={title} />
-    <meta property="twitter:description" content={description} />
-    <meta property="twitter:image" content={imageUrl.href} />
-    <meta property="twitter:creator" content="@guilhermomg" />
-    
-    <!-- LinkedIn -->
-    <meta property="article:author" content={author} />
-    
-    <!-- Additional SEO Meta Tags -->
-    <meta name="theme-color" content="#111827" />
-    <meta name="msapplication-TileColor" content="#111827" />
-    <meta name="format-detection" content="telephone=no" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    
-    <!-- Google Search Console Verification -->
-    {googleVerification && <meta name="google-site-verification" content={googleVerification} />}
+        <!-- Canonical URL -->
+        <link rel="canonical" href={canonicalUrl.href} />
 
-    <!-- Security Headers -->
-    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-    <meta http-equiv="X-Frame-Options" content="DENY" />
-    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
-    
-    <!-- JSON-LD Structured Data -->
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "Person",
-        "name": "Guilhermo González",
-        "jobTitle": "Full-Stack Developer",
-        "description": "Full-Stack Developer passionate about creating innovative digital solutions and exceptional user experiences.",
-        "url": "https://gonzalez.dev.br",
-        "sameAs": [
-          "https://www.linkedin.com/in/guilhermogonzalez/",
-          "https://github.com/guilhermomg"
-        ],
-        "knowsAbout": [
-          "JavaScript",
-          "TypeScript",
-          "React",
-          "Node.js",
-          "Python",
-          "Full-Stack Development",
-          "Web Development",
-          "Software Engineering"
-        ],
-        "alumniOf": {
-          "@type": "Organization",
-          "name": "Computer Science Education"
-        },
-        "contactPoint": {
-          "@type": "ContactPoint",
-          "email": "gui@gonzalez.dev.br",
-          "contactType": "professional"
+        <!-- Hreflang for internationalization -->
+        {
+            hreflangs.map(({ lang: hreflang, url }) => (
+                <link
+                    rel="alternate"
+                    hreflang={hreflang}
+                    href={new URL(url, baseUrl).href}
+                />
+            ))
         }
-      }
-    </script>
-  </head>
-  <body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-sans">
-    <slot />
-    <Analytics />
-  </body>
+
+        <link
+            rel="alternate"
+            hreflang="x-default"
+            href={new URL(pathWithoutLang, baseUrl).href}
+        />
+
+        <!-- Additional geographic-specific hreflang tags -->
+        {
+            additionalHreflangs.map(({ lang: hreflang, url }) => (
+                <link
+                    rel="alternate"
+                    hreflang={hreflang}
+                    href={new URL(url, baseUrl).href}
+                />
+            ))
+        }
+
+        <!-- Favicon -->
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="apple-touch-icon" href="/favicon.svg" />
+
+        <!-- Google Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+
+        <!-- Open Graph / Facebook -->
+        <meta property="og:type" content={ogType} />
+        <meta property="og:url" content={currentUrl.href} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+        <meta property="og:image" content={imageUrl.href} />
+        <meta property="og:site_name" content="Guilhermo González" />
+        <meta
+            property="og:locale"
+            content={lang === "en"
+                ? "en_US"
+                : lang === "pt"
+                  ? "pt_BR"
+                  : "fr_FR"}
+        />
+
+        <!-- Additional locale alternatives for broader geographic targeting -->
+        {
+            lang === "en" && (
+                <meta property="og:locale:alternate" content="en_CA" />
+            )
+        }
+        {
+            lang === "fr" && (
+                <meta property="og:locale:alternate" content="fr_CA" />
+            )
+        }
+        {
+            lang === "pt" && (
+                <meta property="og:locale:alternate" content="pt_PT" />
+            )
+        }
+
+        <!-- Twitter -->
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content={currentUrl.href} />
+        <meta property="twitter:title" content={title} />
+        <meta property="twitter:description" content={description} />
+        <meta property="twitter:image" content={imageUrl.href} />
+        <meta property="twitter:creator" content="@guilhermomg" />
+
+        <!-- LinkedIn -->
+        <meta property="article:author" content={author} />
+        {
+            ogType === "article" && publishedTime && (
+                <meta
+                    property="article:published_time"
+                    content={publishedTime}
+                />
+            )
+        }
+        {
+            ogType === "article" && modifiedTime && (
+                <meta property="article:modified_time" content={modifiedTime} />
+            )
+        }
+
+        <!-- Additional SEO Meta Tags -->
+        <meta name="theme-color" content="#111827" />
+        <meta name="msapplication-TileColor" content="#111827" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta
+            name="apple-mobile-web-app-status-bar-style"
+            content="black-translucent"
+        />
+
+        <!-- Google Search Console Verification -->
+        {
+            googleVerification && (
+                <meta
+                    name="google-site-verification"
+                    content={googleVerification}
+                />
+            )
+        }
+
+        <!-- Security Headers -->
+        <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+        <meta http-equiv="X-Frame-Options" content="DENY" />
+        <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+
+        <!-- JSON-LD Structured Data -->
+        <script type="application/ld+json">
+            {
+                "@context": "https://schema.org",
+                "@type": "Person",
+                "name": "Guilhermo González",
+                "jobTitle": "Full-Stack Developer",
+                "description": "Full-Stack Developer passionate about creating innovative digital solutions and exceptional user experiences.",
+                "url": "https://gonzalez.dev.br",
+                "sameAs": [
+                    "https://www.linkedin.com/in/guilhermogonzalez/",
+                    "https://github.com/guilhermomg"
+                ],
+                "knowsAbout": [
+                    "JavaScript",
+                    "TypeScript",
+                    "React",
+                    "Node.js",
+                    "Python",
+                    "Full-Stack Development",
+                    "Web Development",
+                    "Software Engineering"
+                ],
+                "alumniOf": {
+                    "@type": "Organization",
+                    "name": "Computer Science Education"
+                },
+                "contactPoint": {
+                    "@type": "ContactPoint",
+                    "email": "gui@gonzalez.dev.br",
+                    "contactType": "professional"
+                }
+            }
+        </script>
+    </head>
+    <body
+        class="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-sans"
+    >
+        <slot />
+        <Analytics />
+    </body>
 </html>
 
 <style is:global>
-  html {
-    font-family: 'Inter', system-ui, sans-serif;
-  }
-  
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: rgb(156 163 175) transparent;
-  }
-  
-  *::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  *::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  *::-webkit-scrollbar-thumb {
-    background-color: rgb(156 163 175);
-    border-radius: 3px;
-  }
+    html {
+        font-family: "Inter", system-ui, sans-serif;
+    }
+
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: rgb(156 163 175) transparent;
+    }
+
+    *::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    *::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    *::-webkit-scrollbar-thumb {
+        background-color: rgb(156 163 175);
+        border-radius: 3px;
+    }
 </style>

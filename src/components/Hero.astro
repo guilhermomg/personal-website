@@ -4,17 +4,43 @@ import ResumeDownload from './ResumeDownload.astro';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
+
+const githubUsername = import.meta.env.GITHUB_USERNAME;
+const siteAuthor = import.meta.env.SITE_AUTHOR;
+
+// Get initials from site author if GitHub username is not available
+const getInitials = (name: string | undefined): string => {
+  if (!name) return "";
+  return name
+    .split(" ")
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+};
+
+const initials = getInitials(siteAuthor);
+const shouldRender = githubUsername || siteAuthor;
 ---
 
+{shouldRender && (
 <section id="home" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 pt-24">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
     <div class="space-y-8">
       <!-- Profile Image -->
       <div class="flex justify-center">
         <div class="w-32 h-32 rounded-full bg-gradient-to-r from-primary-500 to-purple-600 p-1">
-          <div class="w-full h-full rounded-full bg-white dark:bg-gray-800 flex items-center justify-center text-4xl font-bold text-primary-600">
-            GG
-          </div>
+          {githubUsername ? (
+            <img 
+              src={`https://github.com/${githubUsername}.png`}
+              alt={siteAuthor || "Profile"}
+              class="w-full h-full rounded-full object-cover"
+            />
+          ) : (
+            <div class="w-full h-full rounded-full bg-white dark:bg-gray-800 flex items-center justify-center text-4xl font-bold text-primary-600">
+              {initials}
+            </div>
+          )}
         </div>
       </div>
       
@@ -96,3 +122,4 @@ const t = useTranslations(lang);
     </div>
   </div>
 </section>
+)}

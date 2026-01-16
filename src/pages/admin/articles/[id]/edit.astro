@@ -4,7 +4,7 @@ export const prerender = false;
 import Layout from "../../../../layouts/Layout.astro";
 import { createServerClient } from "../../../../lib/supabase";
 
-const adminEmail = import.meta.env.ADMIN_EMAIL;
+const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
 
 const supabase = createServerClient(Astro.cookies);
 const {
@@ -17,7 +17,11 @@ if (!user || error) {
     return Astro.redirect("/admin/login");
 }
 
-if (user.email !== adminEmail) {
+// Get GitHub username from user metadata
+const userGithubUsername =
+    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+
+if (userGithubUsername !== adminGithubUsername) {
     // Sign out and redirect
     await supabase.auth.signOut();
     return Astro.redirect("/admin/login?error=unauthorized");
@@ -32,7 +36,9 @@ if (!id) {
 // Fetch article
 const { data: article, error: fetchError } = await supabase
     .from("articles")
-    .select("id,title,slug,content,status,updated_at,created_at")
+    .select(
+        "id,title,slug,content,status,description,featured_image,keywords,excerpt,read_time,updated_at,created_at"
+    )
     .eq("id", id)
     .single();
 
@@ -45,19 +51,23 @@ if (!article || fetchError) {
 const userEmail = user.email;
 ---
 
-<Layout title="Edit Article - Admin - Guilhermo González">
+<Layout
+    title={`Edit Article - Admin - ${import.meta.env.SITE_AUTHOR || "Admin"}`}
+>
     <div
         class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800"
     >
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div class="mb-8 flex items-center gap-4">
+            <div class="mb-8">
                 <a
                     href="/admin/dashboard"
                     class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
                 >
                     ← Back to Dashboard
                 </a>
-                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+                <h1
+                    class="text-3xl font-bold text-gray-900 dark:text-white mt-4"
+                >
                     Edit Article
                 </h1>
             </div>
@@ -174,6 +184,217 @@ const userEmail = user.email;
                         </select>
                     </div>
 
+                    <!-- SEO Metadata Section (Collapsible) -->
+                    <div
+                        class="border-t border-gray-200 dark:border-gray-700 pt-6 mt-6"
+                    >
+                        <button
+                            type="button"
+                            id="toggle-seo"
+                            class="flex items-center justify-between w-full text-left mb-4 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                        >
+                            <h3
+                                class="text-lg font-semibold text-gray-900 dark:text-white"
+                            >
+                                SEO & Social Metadata
+                            </h3>
+                            <svg
+                                id="seo-chevron"
+                                class="w-5 h-5 text-gray-500 dark:text-gray-400 transform transition-transform"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+
+                        <div id="seo-section" class="hidden space-y-6">
+                            <!-- Description -->
+                            <div>
+                                <label
+                                    for="description"
+                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                >
+                                    Description (for social media cards)
+                                </label>
+                                <textarea
+                                    id="description"
+                                    name="description"
+                                    maxlength="160"
+                                    rows="2"
+                                    placeholder="Brief description for LinkedIn/Twitter cards (max 160 chars)"
+                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    >{article.description ?? ""}</textarea
+                                >
+                                <div
+                                    class="flex justify-between items-center mt-1"
+                                >
+                                    <p
+                                        class="text-xs text-gray-600 dark:text-gray-400"
+                                    >
+                                        Used in social media previews and search
+                                        results
+                                    </p>
+                                    <span
+                                        id="desc-counter"
+                                        class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                                    >
+                                        {(article.description ?? "").length} / 160
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Featured Image -->
+                            <div>
+                                <label
+                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                >
+                                    Featured Image
+                                </label>
+
+                                <!-- File Upload -->
+                                <div class="mb-3">
+                                    <label
+                                        for="featured_image_file"
+                                        class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
+                                    >
+                                        Upload New Image
+                                    </label>
+                                    <input
+                                        type="file"
+                                        id="featured_image_file"
+                                        name="featured_image_file"
+                                        accept="image/jpeg,image/png"
+                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-primary-900/40 dark:file:text-primary-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    />
+                                    <p
+                                        class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+                                    >
+                                        JPG or PNG. Max 1MB. Recommended:
+                                        1200×628px
+                                    </p>
+                                </div>
+
+                                <!-- OR separator -->
+                                <div class="flex items-center gap-3 my-3">
+                                    <div
+                                        class="flex-1 h-px bg-gray-300 dark:bg-gray-600"
+                                    >
+                                    </div>
+                                    <span
+                                        class="text-xs text-gray-500 dark:text-gray-400"
+                                        >OR</span
+                                    >
+                                    <div
+                                        class="flex-1 h-px bg-gray-300 dark:bg-gray-600"
+                                    >
+                                    </div>
+                                </div>
+
+                                <!-- URL Input -->
+                                <div>
+                                    <label
+                                        for="featured_image"
+                                        class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
+                                    >
+                                        Image URL
+                                    </label>
+                                    <input
+                                        type="url"
+                                        id="featured_image"
+                                        name="featured_image"
+                                        value={article.featured_image ?? ""}
+                                        placeholder="https://example.com/image.jpg"
+                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    />
+                                    <p
+                                        class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+                                    >
+                                        Paste an existing image URL (will be
+                                        replaced if you upload a file)
+                                    </p>
+                                </div>
+
+                                <!-- Image Preview -->
+                                <div
+                                    id="image-preview"
+                                    class={article.featured_image
+                                        ? "mt-3"
+                                        : "mt-3 hidden"}
+                                >
+                                    <img
+                                        id="preview-img"
+                                        src={article.featured_image ?? ""}
+                                        alt="Preview"
+                                        class="w-full max-w-md h-48 object-cover rounded-lg border border-gray-300 dark:border-gray-600"
+                                    />
+                                </div>
+                            </div>
+
+                            <!-- Keywords -->
+                            <div>
+                                <label
+                                    for="keywords"
+                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                >
+                                    Keywords
+                                </label>
+                                <input
+                                    type="text"
+                                    id="keywords"
+                                    name="keywords"
+                                    value={article.keywords ?? ""}
+                                    placeholder="web development, seo, astro, typescript"
+                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                />
+                                <p
+                                    class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+                                >
+                                    Comma-separated keywords for SEO
+                                </p>
+                            </div>
+
+                            <!-- Excerpt -->
+                            <div>
+                                <label
+                                    for="excerpt"
+                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                >
+                                    Excerpt (optional)
+                                </label>
+                                <textarea
+                                    id="excerpt"
+                                    name="excerpt"
+                                    maxlength="200"
+                                    rows="2"
+                                    placeholder="Custom excerpt for article listings (defaults to description if empty)"
+                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    >{article.excerpt ?? ""}</textarea
+                                >
+                                <div
+                                    class="flex justify-between items-center mt-1"
+                                >
+                                    <p
+                                        class="text-xs text-gray-600 dark:text-gray-400"
+                                    >
+                                        Shown on article listing pages
+                                    </p>
+                                    <span
+                                        id="excerpt-counter"
+                                        class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                                    >
+                                        {(article.excerpt ?? "").length} / 200
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Metadata -->
                     <div
                         class="grid grid-cols-2 gap-4 text-xs text-gray-600 dark:text-gray-400"
@@ -284,9 +505,125 @@ const userEmail = user.email;
         const contentContainer = document.getElementById(
             "content-container"
         ) as HTMLDivElement;
+        const descriptionTextarea = document.getElementById(
+            "description"
+        ) as HTMLTextAreaElement;
+        const descCounter = document.getElementById(
+            "desc-counter"
+        ) as HTMLSpanElement;
+        const excerptTextarea = document.getElementById(
+            "excerpt"
+        ) as HTMLTextAreaElement;
+        const excerptCounter = document.getElementById(
+            "excerpt-counter"
+        ) as HTMLSpanElement;
+        const toggleSeoBtn = document.getElementById(
+            "toggle-seo"
+        ) as HTMLButtonElement;
+        const seoSection = document.getElementById(
+            "seo-section"
+        ) as HTMLDivElement;
+        const seoChevron = document.getElementById(
+            "seo-chevron"
+        ) as HTMLElement;
+        const featuredImageInput = document.getElementById(
+            "featured_image"
+        ) as HTMLInputElement;
+        const featuredImageFileInput = document.getElementById(
+            "featured_image_file"
+        ) as HTMLInputElement;
+        const imagePreview = document.getElementById(
+            "image-preview"
+        ) as HTMLDivElement;
+        const previewImg = document.getElementById(
+            "preview-img"
+        ) as HTMLImageElement;
 
         const articleId = form?.dataset.articleId || "";
         let isPreviewMode = false;
+        let isSeoExpanded = false;
+
+        // Calculate read time from markdown content (assumes 200 words per minute)
+        function calculateReadTime(markdown: string): number {
+            const text = markdown.replace(/[#*`_~\[\]()]/g, "").trim();
+            const wordCount = text
+                .split(/\s+/)
+                .filter((word) => word.length > 0).length;
+            return Math.max(1, Math.round(wordCount / 200));
+        }
+
+        // Character counters
+        if (descriptionTextarea && descCounter) {
+            descriptionTextarea.addEventListener("input", () => {
+                const length = descriptionTextarea.value.length;
+                descCounter.textContent = `${length} / 160`;
+                if (length > 150) {
+                    descCounter.classList.add(
+                        "text-amber-600",
+                        "dark:text-amber-400"
+                    );
+                } else {
+                    descCounter.classList.remove(
+                        "text-amber-600",
+                        "dark:text-amber-400"
+                    );
+                }
+            });
+        }
+
+        if (excerptTextarea && excerptCounter) {
+            excerptTextarea.addEventListener("input", () => {
+                const length = excerptTextarea.value.length;
+                excerptCounter.textContent = `${length} / 200`;
+            });
+        }
+
+        // Toggle SEO section
+        if (toggleSeoBtn && seoSection && seoChevron) {
+            toggleSeoBtn.addEventListener("click", () => {
+                isSeoExpanded = !isSeoExpanded;
+                if (isSeoExpanded) {
+                    seoSection.classList.remove("hidden");
+                    seoChevron.classList.add("rotate-180");
+                } else {
+                    seoSection.classList.add("hidden");
+                    seoChevron.classList.remove("rotate-180");
+                }
+            });
+        }
+
+        if (featuredImageInput && imagePreview && previewImg) {
+            featuredImageInput.addEventListener("input", () => {
+                const url = featuredImageInput.value.trim();
+                if (url) {
+                    previewImg.src = url;
+                    imagePreview.classList.remove("hidden");
+                } else {
+                    imagePreview.classList.add("hidden");
+                }
+            });
+
+            previewImg.addEventListener("error", () => {
+                imagePreview.classList.add("hidden");
+            });
+        }
+
+        // Handle file input change to show preview
+        if (featuredImageFileInput && imagePreview && previewImg) {
+            featuredImageFileInput.addEventListener("change", () => {
+                const file = featuredImageFileInput.files?.[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        previewImg.src = e.target?.result as string;
+                        imagePreview.classList.remove("hidden");
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    imagePreview.classList.add("hidden");
+                }
+            });
+        }
 
         // Configure marked
         marked.setOptions({
@@ -340,9 +677,105 @@ const userEmail = user.email;
                     const slug = (formData.get("slug") as string)?.trim();
                     const content = contentTextarea.value.trim();
                     const status = formData.get("status") as string;
+                    const description = (
+                        formData.get("description") as string
+                    )?.trim();
+                    let featured_image =
+                        (formData.get("featured_image") as string)?.trim() ||
+                        null;
+                    const keywords =
+                        (formData.get("keywords") as string)?.trim() || null;
+                    const excerpt =
+                        (formData.get("excerpt") as string)?.trim() || null;
+                    const imageFile = featuredImageFileInput.files?.[0];
 
-                    if (!title || !slug || !content) {
-                        throw new Error("All fields are required");
+                    // Calculate read time from content
+                    const read_time = calculateReadTime(content);
+
+                    if (!title || !slug || !content || !description) {
+                        throw new Error(
+                            "Title, slug, content, and description are required"
+                        );
+                    }
+
+                    // Upload image to Supabase Storage if file is provided
+                    if (imageFile) {
+                        // Validate file size (1MB max)
+                        if (imageFile.size > 1 * 1024 * 1024) {
+                            throw new Error("Image file must be less than 1MB");
+                        }
+
+                        // Generate unique filename with validated extension
+                        const rawFileExt = imageFile.name.split(".").pop() || "";
+                        const fileExt = rawFileExt.toLowerCase();
+
+                        // Map common image MIME types to expected extensions
+                        const mimeToExt: Record<string, string> = {
+                            "image/jpeg": "jpg",
+                            "image/jpg": "jpg",
+                            "image/png": "png",
+                            "image/webp": "webp",
+                            "image/gif": "gif",
+                        };
+
+                        const expectedExt = mimeToExt[imageFile.type];
+
+                        if (
+                            !fileExt ||
+                            fileExt === imageFile.name.toLowerCase() ||
+                            !expectedExt ||
+                            fileExt !== expectedExt
+                        ) {
+                            throw new Error(
+                                "Invalid image file type or extension. Please upload a valid image file."
+                            );
+                        }
+
+                        const fileName = `${Date.now()}-${Math.random()
+                            .toString(36)
+                            .substring(2)}.${fileExt}`;
+                        const filePath = `articles/${fileName}`;
+
+                        // Upload to Supabase Storage
+                        const { data: uploadData, error: uploadError } =
+                            await supabase.storage
+                                .from("personal-website")
+                                .upload(filePath, imageFile, {
+                                    contentType: imageFile.type,
+                                    upsert: false,
+                                });
+
+                        if (uploadError) {
+                            throw new Error(
+                                `Image upload failed: ${uploadError.message}`
+                            );
+                        }
+
+                        // Get public URL
+                        const { data: urlData } = supabase.storage
+                            .from("personal-website")
+                            .getPublicUrl(filePath);
+
+                        featured_image = urlData.publicUrl;
+                    }
+
+                    if (description.length > 160) {
+                        throw new Error(
+                            "Description must be 160 characters or less"
+                        );
+                    }
+
+                    // Validate keywords format (optional but must be comma-separated if provided)
+                    if (keywords && keywords.trim()) {
+                        const keywordList = keywords
+                            .split(",")
+                            .map((k) => k.trim())
+                            .filter((k) => k.length > 0);
+                        if (keywordList.length === 0) {
+                            throw new Error(
+                                "Keywords must be comma-separated values"
+                            );
+                        }
                     }
 
                     // Check if slug already exists (excluding current article)
@@ -360,14 +793,36 @@ const userEmail = user.email;
                     }
 
                     // Update article
+                    const updateData: any = {
+                        title,
+                        slug,
+                        content,
+                        status,
+                        description,
+                        featured_image,
+                        keywords,
+                        excerpt,
+                        read_time,
+                    };
+
+                    // Set published_at only if status is being set to published and it wasn't published before
+                    if (status === "published") {
+                        // Check if article was already published
+                        const { data: currentArticle } = await supabase
+                            .from("articles")
+                            .select("published_at")
+                            .eq("id", articleId)
+                            .single();
+
+                        // Only set published_at if it's not already set
+                        if (!currentArticle?.published_at) {
+                            updateData.published_at = new Date().toISOString();
+                        }
+                    }
+
                     const { error } = await supabase
                         .from("articles")
-                        .update({
-                            title,
-                            slug,
-                            content,
-                            status,
-                        })
+                        .update(updateData)
                         .eq("id", articleId);
 
                     if (error) {
