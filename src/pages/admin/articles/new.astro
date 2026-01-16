@@ -635,8 +635,24 @@ const userEmail = user.email;
                             throw new Error("Image file must be less than 1MB");
                         }
 
-                        // Generate unique filename
-                        const fileExt = imageFile.name.split(".").pop();
+                        // Determine and validate file extension from MIME type
+                        const mimeToExtension: Record<string, string> = {
+                            "image/jpeg": "jpg",
+                            "image/jpg": "jpg",
+                            "image/png": "png",
+                            "image/gif": "gif",
+                            "image/webp": "webp",
+                            "image/svg+xml": "svg",
+                        };
+
+                        const mimeType = imageFile.type;
+                        const fileExt = mimeToExtension[mimeType];
+
+                        if (!mimeType || !fileExt) {
+                            throw new Error("Unsupported or missing image MIME type");
+                        }
+
+                        // Generate unique filename using validated extension
                         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
                         const filePath = `articles/${fileName}`;
 
