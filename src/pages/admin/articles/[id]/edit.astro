@@ -706,9 +706,35 @@ const userEmail = user.email;
                             throw new Error("Image file must be less than 1MB");
                         }
 
-                        // Generate unique filename
-                        const fileExt = imageFile.name.split(".").pop();
-                        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+                        // Generate unique filename with validated extension
+                        const rawFileExt = imageFile.name.split(".").pop() || "";
+                        const fileExt = rawFileExt.toLowerCase();
+
+                        // Map common image MIME types to expected extensions
+                        const mimeToExt: Record<string, string> = {
+                            "image/jpeg": "jpg",
+                            "image/jpg": "jpg",
+                            "image/png": "png",
+                            "image/webp": "webp",
+                            "image/gif": "gif",
+                        };
+
+                        const expectedExt = mimeToExt[imageFile.type];
+
+                        if (
+                            !fileExt ||
+                            fileExt === imageFile.name.toLowerCase() ||
+                            !expectedExt ||
+                            fileExt !== expectedExt
+                        ) {
+                            throw new Error(
+                                "Invalid image file type or extension. Please upload a valid image file."
+                            );
+                        }
+
+                        const fileName = `${Date.now()}-${Math.random()
+                            .toString(36)
+                            .substring(2)}.${fileExt}`;
                         const filePath = `articles/${fileName}`;
 
                         // Upload to Supabase Storage
