@@ -12,6 +12,10 @@ interface ChatWidgetProps {
   siteAuthor?: string;
 }
 
+const isMobile = () => {
+  return typeof window !== 'undefined' && window.innerWidth < 768;
+};
+
 export default function ChatWidget({ apiUrl, siteAuthor }: ChatWidgetProps) {
   const firstName = getFirstName(siteAuthor);
   const greeting = firstName
@@ -36,10 +40,18 @@ export default function ChatWidget({ apiUrl, siteAuthor }: ChatWidgetProps) {
   }, [messages]);
 
   useEffect(() => {
-    if (isOpen && inputRef.current) {
+    if (isOpen && inputRef.current && !isMobile()) {
       inputRef.current.focus();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isLoading && inputRef.current) {
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+    }
+  }, [isLoading]);
 
   // Open chat widget if URL hash is #chatbot
   useEffect(() => {
@@ -115,11 +127,16 @@ export default function ChatWidget({ apiUrl, siteAuthor }: ChatWidgetProps) {
         }
       }
     } catch (error) {
-      console.error('Chat error:', error);
       setMessages(prev => [
         ...prev,
         { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }
       ]);
+      // Refocus input on mobile even after error
+      if (isMobile() && inputRef.current) {
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 100);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -145,7 +162,7 @@ export default function ChatWidget({ apiUrl, siteAuthor }: ChatWidgetProps) {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-96 h-[500px] bg-white rounded-lg shadow-2xl flex flex-col border border-gray-200">
+        <div className="fixed bottom-24 z-50 flex flex-col border border-gray-200 bg-white rounded-lg shadow-2xl w-96 h-[500px] right-6 md:right-6 md:w-96 max-sm:left-6 max-sm:right-6 max-sm:w-auto">
           {/* Header */}
           <div className="bg-blue-600 text-white p-4 rounded-t-lg">
             <h3 className="font-semibold text-lg">
