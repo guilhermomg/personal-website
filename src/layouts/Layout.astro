@@ -1,6 +1,7 @@
 ---
 import { getLangFromUrl, useTranslations } from "../i18n/utils";
 import Analytics from "@vercel/analytics/astro";
+import ChatButton from "../components/ChatButton.astro";
 
 export interface Props {
     title: string;
@@ -285,6 +286,7 @@ const additionalHreflangs = [
     >
         <slot />
         <Analytics />
+        <ChatButton />
     </body>
 </html>
 
