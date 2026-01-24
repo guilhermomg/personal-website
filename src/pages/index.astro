@@ -9,9 +9,22 @@ import LatestArticles from "../components/LatestArticles.astro";
 import Contact from "../components/Contact.astro";
 import Footer from "../components/Footer.astro";
 import { getLangFromUrl, useTranslations } from "../i18n/utils";
+import { supabase } from "../lib/supabase";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
+
+// Fetch published projects for SEO
+const { data: projects } = await supabase
+    .from("projects")
+    .select("id, name, description, tags, link, github_link")
+    .eq("status", "published")
+    .order("order", { ascending: true });
+
+// Extract unique tags from all projects for SEO keywords
+const projectTags = projects
+    ? Array.from(new Set(projects.flatMap((p) => p.tags || [])))
+    : [];
 
 // SEO data based on language
 const seoData = {
@@ -39,13 +52,39 @@ const seoData = {
 };
 
 const currentSeo = seoData[lang] || seoData.en;
+
+// Add project tags to keywords
+const enhancedKeywords =
+    projectTags.length > 0
+        ? `${currentSeo.keywords}, ${projectTags.join(", ")}`
+        : currentSeo.keywords;
+
+// Create structured data for projects
+const projectsStructuredData =
+    projects && projects.length > 0
+        ? projects.map((project) => ({
+              "@type": "CreativeWork",
+              name: project.name,
+              description: project.description,
+              url: project.link || project.github_link,
+              author: {
+                  "@type": "Person",
+                  name: "Guilhermo González",
+              },
+              keywords: project.tags?.join(", "),
+              ...(project.github_link && {
+                  codeRepository: project.github_link,
+              }),
+          }))
+        : [];
 ---
 
 <Layout
     title={currentSeo.title}
     description={currentSeo.description}
-    keywords={currentSeo.keywords}
+    keywords={enhancedKeywords}
     author="Guilhermo González"
+    projects={projectsStructuredData}
 >
     <Navigation />
     <main>

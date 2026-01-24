@@ -6,9 +6,26 @@ import {
 } from "../i18n/utils";
 import { languages } from "../i18n/config";
 import LanguageSwitcher from "./LanguageSwitcher.astro";
+import { supabase } from "../lib/supabase";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
+
+// Check if there are any published projects
+const { count: projectsCount } = await supabase
+    .from("projects")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "published");
+
+const hasProjects = projectsCount && projectsCount > 0;
+
+// Check if there are any published articles
+const { count: articlesCount } = await supabase
+    .from("articles")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "published");
+
+const hasArticles = articlesCount && articlesCount > 0;
 ---
 
 <nav
@@ -39,11 +56,26 @@ const t = useTranslations(lang);
                         href={getLocalizedPath("/#experience", lang)}
                         class="nav-link">{t("nav.experience")}</a
                     >
-                    <!-- <a href={getLocalizedPath('/#projects', lang)} class="nav-link">{t('nav.projects')}</a> -->
-                    <a
-                        href={getLocalizedPath("/articles", lang)}
-                        class="nav-link">Articles</a
-                    >
+                    {
+                        hasProjects && (
+                            <a
+                                href={getLocalizedPath("/#projects", lang)}
+                                class="nav-link"
+                            >
+                                {t("nav.projects")}
+                            </a>
+                        )
+                    }
+                    {
+                        hasArticles && (
+                            <a
+                                href={getLocalizedPath("/#articles", lang)}
+                                class="nav-link"
+                            >
+                                Articles
+                            </a>
+                        )
+                    }
                     <a
                         href={getLocalizedPath("/#contact", lang)}
                         class="nav-link">{t("nav.contact")}</a
@@ -95,11 +127,26 @@ const t = useTranslations(lang);
                     href={getLocalizedPath("/#experience", lang)}
                     class="mobile-nav-link">{t("nav.experience")}</a
                 >
-                <!-- <a href={getLocalizedPath('/#projects', lang)} class="mobile-nav-link">{t('nav.projects')}</a> -->
-                <a
-                    href={getLocalizedPath("/articles", lang)}
-                    class="mobile-nav-link">Articles</a
-                >
+                {
+                    hasProjects && (
+                        <a
+                            href={getLocalizedPath("/#projects", lang)}
+                            class="mobile-nav-link"
+                        >
+                            {t("nav.projects")}
+                        </a>
+                    )
+                }
+                {
+                    hasArticles && (
+                        <a
+                            href={getLocalizedPath("/#articles", lang)}
+                            class="mobile-nav-link"
+                        >
+                            Articles
+                        </a>
+                    )
+                }
                 <a
                     href={getLocalizedPath("/#contact", lang)}
                     class="mobile-nav-link">{t("nav.contact")}</a
@@ -144,11 +191,11 @@ const t = useTranslations(lang);
         anchor.addEventListener("click", function (e) {
             e.preventDefault();
             const href = (e.currentTarget as HTMLAnchorElement).getAttribute(
-                "href"
+                "href",
             );
             if (href) {
                 const target = document.querySelector(
-                    href.split("#")[1] ? "#" + href.split("#")[1] : href
+                    href.split("#")[1] ? "#" + href.split("#")[1] : href,
                 );
                 if (target) {
                     target.scrollIntoView({
