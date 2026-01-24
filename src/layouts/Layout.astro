@@ -12,6 +12,18 @@ export interface Props {
     ogType?: string;
     publishedTime?: string;
     modifiedTime?: string;
+    projects?: Array<{
+        "@type": string;
+        name: string;
+        description: string;
+        url?: string;
+        author: {
+            "@type": string;
+            name: string;
+        };
+        keywords?: string;
+        codeRepository?: string;
+    }>;
 }
 
 const {
@@ -24,6 +36,7 @@ const {
     ogType = "website",
     publishedTime,
     modifiedTime,
+    projects = [],
 } = Astro.props;
 
 const lang = getLangFromUrl(Astro.url);
@@ -35,7 +48,7 @@ const googleVerification = import.meta.env.GOOGLE_VERIFICATION_CODE;
 // Get the full URL for Open Graph and canonical
 const currentUrl = new URL(
     Astro.url.pathname,
-    Astro.site || "https://gonzalez.dev.br"
+    Astro.site || "https://gonzalez.dev.br",
 );
 const canonicalUrl = canonical
     ? new URL(canonical, Astro.site || "https://gonzalez.dev.br")
@@ -228,19 +241,21 @@ const additionalHreflangs = [
         <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
 
         <!-- JSON-LD Structured Data -->
-        <script type="application/ld+json">
-            {
+        <script
+            type="application/ld+json"
+            set:html={JSON.stringify({
                 "@context": "https://schema.org",
                 "@type": "Person",
-                "name": "Guilhermo González",
-                "jobTitle": "Full-Stack Developer",
-                "description": "Full-Stack Developer passionate about creating innovative digital solutions and exceptional user experiences.",
-                "url": "https://gonzalez.dev.br",
-                "sameAs": [
+                name: "Guilhermo González",
+                jobTitle: "Full-Stack Developer",
+                description:
+                    "Full-Stack Developer passionate about creating innovative digital solutions and exceptional user experiences.",
+                url: "https://gonzalez.dev.br",
+                sameAs: [
                     "https://www.linkedin.com/in/guilhermogonzalez/",
-                    "https://github.com/guilhermomg"
+                    "https://github.com/guilhermomg",
                 ],
-                "knowsAbout": [
+                knowsAbout: [
                     "JavaScript",
                     "TypeScript",
                     "React",
@@ -248,19 +263,22 @@ const additionalHreflangs = [
                     "Python",
                     "Full-Stack Development",
                     "Web Development",
-                    "Software Engineering"
+                    "Software Engineering",
                 ],
-                "alumniOf": {
+                alumniOf: {
                     "@type": "Organization",
-                    "name": "Computer Science Education"
+                    name: "Computer Science Education",
                 },
-                "contactPoint": {
+                contactPoint: {
                     "@type": "ContactPoint",
-                    "email": "gui@gonzalez.dev.br",
-                    "contactType": "professional"
-                }
-            }
-        </script>
+                    email: "gui@gonzalez.dev.br",
+                    contactType: "professional",
+                },
+                ...(projects.length > 0 && {
+                    workExample: projects,
+                }),
+            })}
+        />
     </head>
     <body
         class="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-sans"

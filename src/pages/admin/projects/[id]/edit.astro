@@ -1,0 +1,454 @@
+---
+export const prerender = false;
+
+import Layout from "../../../../layouts/Layout.astro";
+import { createServerClient } from "../../../../lib/supabase";
+
+const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
+
+const supabase = createServerClient(Astro.cookies);
+const {
+    data: { user },
+    error,
+} = await supabase.auth.getUser();
+
+// Redirect to login if not authenticated
+if (!user || error) {
+    return Astro.redirect("/admin/login");
+}
+
+// Get GitHub username from user metadata
+const userGithubUsername =
+    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+
+if (userGithubUsername !== adminGithubUsername) {
+    // Sign out and redirect
+    await supabase.auth.signOut();
+    return Astro.redirect("/admin/login?error=unauthorized");
+}
+
+// Get project ID from URL params
+const { id } = Astro.params;
+if (!id) {
+    return Astro.redirect("/admin/dashboard");
+}
+
+// Fetch project
+const { data: project, error: fetchError } = await supabase
+    .from("projects")
+    .select(
+        "id,name,description,tags,link,github_link,order,status,updated_at,created_at",
+    )
+    .eq("id", id)
+    .single();
+
+// Redirect if project not found
+if (!project || fetchError) {
+    return Astro.redirect("/admin/dashboard");
+}
+
+// User is authenticated and authorized
+const userEmail = user.email;
+---
+
+<Layout
+    title={`Edit Project - Admin - ${import.meta.env.SITE_AUTHOR || "Admin"}`}
+>
+    <div
+        class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800"
+    >
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="mb-8">
+                <a
+                    href="/admin/dashboard"
+                    class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+                >
+                    ← Back to Dashboard
+                </a>
+                <h1
+                    class="text-3xl font-bold text-gray-900 dark:text-white mt-4"
+                >
+                    Edit Project
+                </h1>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-8">
+                <form
+                    id="project-form"
+                    data-project-id={project.id}
+                    class="space-y-6"
+                >
+                    <!-- Name -->
+                    <div>
+                        <label
+                            for="name"
+                            class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                        >
+                            Project Name <span class="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="name"
+                            name="name"
+                            required
+                            value={project.name ?? ""}
+                            placeholder="Enter project name"
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label
+                            for="description"
+                            class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                        >
+                            Description <span class="text-red-500">*</span>
+                        </label>
+                        <textarea
+                            id="description"
+                            name="description"
+                            required
+                            rows="4"
+                            placeholder="Describe your project..."
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            >{project.description ?? ""}</textarea
+                        >
+                        <p
+                            class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+                        >
+                            Brief description shown on the project card
+                        </p>
+                    </div>
+
+                    <!-- Tags -->
+                    <div>
+                        <label
+                            for="tags"
+                            class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                        >
+                            Technologies / Tags
+                        </label>
+                        <input
+                            type="text"
+                            id="tags"
+                            name="tags"
+                            value={project.tags ? project.tags.join(", ") : ""}
+                            placeholder="React, Node.js, TypeScript, PostgreSQL"
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                        <p
+                            class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+                        >
+                            Comma-separated tags (e.g., React, Node.js,
+                            TypeScript)
+                        </p>
+
+                        <!-- Tag Preview -->
+                        <div
+                            id="tags-preview"
+                            class="mt-3 flex flex-wrap gap-2"
+                        >
+                        </div>
+                    </div>
+
+                    <!-- Links Section -->
+                    <div
+                        class="border-t border-gray-200 dark:border-gray-700 pt-6"
+                    >
+                        <h3
+                            class="text-lg font-semibold text-gray-900 dark:text-white mb-4"
+                        >
+                            Links
+                        </h3>
+
+                        <!-- Project Link -->
+                        <div class="mb-4">
+                            <label
+                                for="link"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                            >
+                                Project URL (Demo/Live Site)
+                            </label>
+                            <input
+                                type="url"
+                                id="link"
+                                name="link"
+                                value={project.link ?? ""}
+                                placeholder="https://myproject.com"
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                            <p
+                                class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+                            >
+                                Link to the live project or demo
+                            </p>
+                        </div>
+
+                        <!-- GitHub Link -->
+                        <div>
+                            <label
+                                for="github_link"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                            >
+                                GitHub Repository
+                            </label>
+                            <input
+                                type="url"
+                                id="github_link"
+                                name="github_link"
+                                value={project.github_link ?? ""}
+                                placeholder="https://github.com/username/repo"
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                            <p
+                                class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+                            >
+                                Link to the GitHub repository
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Order & Status -->
+                    <div
+                        class="grid md:grid-cols-2 gap-6 border-t border-gray-200 dark:border-gray-700 pt-6"
+                    >
+                        <!-- Order -->
+                        <div>
+                            <label
+                                for="order"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                            >
+                                Display Order
+                            </label>
+                            <input
+                                type="number"
+                                id="order"
+                                name="order"
+                                min="0"
+                                value={project.order ?? 0}
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                            <p
+                                class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+                            >
+                                Lower numbers appear first
+                            </p>
+                        </div>
+
+                        <!-- Status -->
+                        <div>
+                            <label
+                                for="status"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                            >
+                                Status <span class="text-red-500">*</span>
+                            </label>
+                            <select
+                                id="status"
+                                name="status"
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            >
+                                <option
+                                    value="draft"
+                                    selected={project.status === "draft"}
+                                >
+                                    Draft
+                                </option>
+                                <option
+                                    value="published"
+                                    selected={project.status === "published"}
+                                >
+                                    Published
+                                </option>
+                            </select>
+                            <p
+                                class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+                            >
+                                Only published projects appear on the site
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex gap-3 pt-4">
+                        <button
+                            type="submit"
+                            id="save-btn"
+                            class="px-6 py-2 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Update Project
+                        </button>
+                        <a
+                            href="/admin/dashboard"
+                            class="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        >
+                            Cancel
+                        </a>
+                    </div>
+
+                    <!-- Error message -->
+                    <div
+                        id="error-message"
+                        class="hidden rounded-lg bg-red-50 dark:bg-red-900/30 p-4 text-sm text-red-700 dark:text-red-200"
+                    >
+                    </div>
+
+                    <!-- Success message -->
+                    <div
+                        id="success-message"
+                        class="hidden rounded-lg bg-green-50 dark:bg-green-900/30 p-4 text-sm text-green-700 dark:text-green-200"
+                    >
+                        Project updated successfully! Redirecting...
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        import { supabase } from "../../../../lib/supabase";
+
+        const form = document.getElementById("project-form") as HTMLFormElement;
+        const projectId = form?.dataset.projectId;
+        const tagsInput = document.getElementById("tags") as HTMLInputElement;
+        const tagsPreview = document.getElementById(
+            "tags-preview",
+        ) as HTMLDivElement;
+        const saveBtn = document.getElementById(
+            "save-btn",
+        ) as HTMLButtonElement;
+        const errorMessage = document.getElementById(
+            "error-message",
+        ) as HTMLDivElement;
+        const successMessage = document.getElementById(
+            "success-message",
+        ) as HTMLDivElement;
+
+        // Initialize tag preview on load
+        if (tagsInput && tagsPreview) {
+            // Show initial tags
+            updateTagPreview();
+
+            // Live tag preview
+            tagsInput.addEventListener("input", updateTagPreview);
+        }
+
+        function updateTagPreview() {
+            if (!tagsInput || !tagsPreview) return;
+
+            const tags = tagsInput.value
+                .split(",")
+                .map((t) => t.trim())
+                .filter((t) => t.length > 0);
+
+            tagsPreview.innerHTML = tags
+                .map(
+                    (tag) =>
+                        `<span class="px-3 py-1 text-xs font-semibold rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300">${tag}</span>`,
+                )
+                .join("");
+        }
+
+        // Handle form submission
+        if (form) {
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+
+                if (!saveBtn || !form || !projectId) return;
+
+                saveBtn.disabled = true;
+                errorMessage!.classList.add("hidden");
+                successMessage!.classList.add("hidden");
+
+                try {
+                    const formData = new FormData(form);
+                    const name = (formData.get("name") as string)?.trim();
+                    const description = (
+                        formData.get("description") as string
+                    )?.trim();
+                    const tagsStr = (formData.get("tags") as string)?.trim();
+                    const link =
+                        (formData.get("link") as string)?.trim() || null;
+                    const github_link =
+                        (formData.get("github_link") as string)?.trim() || null;
+                    const order = parseInt(
+                        (formData.get("order") as string) || "0",
+                    );
+                    const status = formData.get("status") as string;
+
+                    if (!name || !description) {
+                        throw new Error(
+                            "Project name and description are required",
+                        );
+                    }
+
+                    // Parse tags into array
+                    const tags = tagsStr
+                        ? tagsStr
+                              .split(",")
+                              .map((t) => t.trim())
+                              .filter((t) => t.length > 0)
+                        : [];
+
+                    // Validate URLs if provided
+                    if (link && !isValidUrl(link)) {
+                        throw new Error("Project URL is not valid");
+                    }
+                    if (github_link && !isValidUrl(github_link)) {
+                        throw new Error("GitHub URL is not valid");
+                    }
+
+                    // Update project
+                    const { data, error } = await supabase
+                        .from("projects")
+                        .update({
+                            name,
+                            description,
+                            tags,
+                            link,
+                            github_link,
+                            order,
+                            status,
+                        })
+                        .eq("id", projectId)
+                        .select()
+                        .single();
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    if (successMessage) {
+                        successMessage.classList.remove("hidden");
+                    }
+
+                    // Redirect to dashboard after 1.5s
+                    setTimeout(() => {
+                        window.location.href = "/admin/dashboard";
+                    }, 1500);
+                } catch (err) {
+                    const message =
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to update project";
+                    if (errorMessage) {
+                        errorMessage.textContent = message;
+                        errorMessage.classList.remove("hidden");
+                    }
+                    saveBtn.disabled = false;
+                }
+            });
+        }
+
+        // Helper function to validate URL
+        function isValidUrl(urlString: string): boolean {
+            try {
+                const url = new URL(urlString);
+                return url.protocol === "http:" || url.protocol === "https:";
+            } catch {
+                return false;
+            }
+        }
+    </script>
+</Layout>

@@ -37,12 +37,29 @@ type Article = {
     created_at?: string | null;
 };
 
+type Project = {
+    id: string;
+    name?: string | null;
+    description?: string | null;
+    status?: "draft" | "published" | null;
+    order?: number | null;
+    updated_at?: string | null;
+    created_at?: string | null;
+};
+
 const { data: articlesData, error: articlesError } = await supabase
     .from("articles")
     .select("id,title,slug,status,updated_at,created_at")
     .order("updated_at", { ascending: false });
 
 const articles = (articlesData ?? []) as Article[];
+
+const { data: projectsData, error: projectsError } = await supabase
+    .from("projects")
+    .select("id,name,description,status,order,updated_at,created_at")
+    .order("order", { ascending: true });
+
+const projects = (projectsData ?? []) as Project[];
 const formatDate = (value?: string | null) => {
     if (!value) return "Not set";
     const date = new Date(value);
@@ -210,7 +227,7 @@ const statusColors = {
                                                         <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
                                                             {formatDate(
                                                                 article.updated_at ??
-                                                                    article.created_at
+                                                                    article.created_at,
                                                             )}
                                                         </td>
                                                         <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -235,6 +252,161 @@ const statusColors = {
                                                                         article.id
                                                                     }
                                                                     class="delete-article-btn px-3 py-1 rounded-md border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-xs"
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )
+                        }
+                    </div>
+
+                    <!-- Projects Section -->
+                    <div
+                        class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6"
+                    >
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3
+                                    class="text-lg font-semibold text-gray-900 dark:text-white"
+                                >
+                                    Projects
+                                </h3>
+                                <p
+                                    class="text-sm text-gray-600 dark:text-gray-400"
+                                >
+                                    Manage your portfolio projects
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span
+                                    class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200"
+                                >
+                                    {projects.length} total
+                                </span>
+                                <a
+                                    href="/admin/projects/new"
+                                    class="px-4 py-2 rounded-md bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors shadow"
+                                >
+                                    + New Project
+                                </a>
+                            </div>
+                        </div>
+
+                        {
+                            projectsError && (
+                                <div class="mb-4 rounded-md bg-red-50 dark:bg-red-900/30 p-4 text-sm text-red-700 dark:text-red-200">
+                                    Failed to load projects:{" "}
+                                    {projectsError.message}
+                                </div>
+                            )
+                        }
+
+                        {
+                            !projectsError && projects.length === 0 ? (
+                                <div class="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-10 text-center">
+                                    <p class="text-gray-700 dark:text-gray-200 font-semibold mb-2">
+                                        No projects yet
+                                    </p>
+                                    <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">
+                                        Create your first project to showcase
+                                        your work.
+                                    </p>
+                                    <a
+                                        href="/admin/projects/new"
+                                        class="px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-semibold hover:bg-primary-700 transition-colors"
+                                    >
+                                        Create project
+                                    </a>
+                                </div>
+                            ) : (
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                        <thead class="bg-gray-50 dark:bg-gray-800/50">
+                                            <tr>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Name
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Description
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Status
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Order
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Actions
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                            {projects.map((project) => {
+                                                const status:
+                                                    | "draft"
+                                                    | "published" =
+                                                    project.status ?? "draft";
+
+                                                return (
+                                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
+                                                        <td class="px-4 py-4">
+                                                            <div class="text-sm font-semibold text-gray-900 dark:text-white">
+                                                                {project.name ??
+                                                                    "Untitled"}
+                                                            </div>
+                                                        </td>
+                                                        <td class="px-4 py-4">
+                                                            <div class="text-sm text-gray-700 dark:text-gray-200 max-w-md truncate">
+                                                                {project.description ??
+                                                                    "No description"}
+                                                            </div>
+                                                        </td>
+                                                        <td class="px-4 py-4 whitespace-nowrap">
+                                                            <span
+                                                                class={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${statusColors[status] ?? "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"}`}
+                                                            >
+                                                                {status}
+                                                            </span>
+                                                        </td>
+                                                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
+                                                            {project.order ?? 0}
+                                                        </td>
+                                                        <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                            <div class="flex justify-end gap-2">
+                                                                <a
+                                                                    href={`/admin/projects/${project.id}/edit`}
+                                                                    class="px-3 py-1 rounded-md bg-primary-600 text-white hover:bg-primary-700 transition-colors text-xs"
+                                                                >
+                                                                    Edit
+                                                                </a>
+                                                                <button
+                                                                    type="button"
+                                                                    data-project-id={
+                                                                        project.id
+                                                                    }
+                                                                    class="delete-project-btn px-3 py-1 rounded-md border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-xs"
                                                                 >
                                                                     Delete
                                                                 </button>
@@ -278,7 +450,7 @@ const statusColors = {
 
                 if (
                     !confirm(
-                        "Are you sure you want to delete this article? This cannot be undone."
+                        "Are you sure you want to delete this article? This cannot be undone.",
                     )
                 ) {
                     return;
@@ -301,6 +473,46 @@ const statusColors = {
                         err instanceof Error
                             ? err.message
                             : "Failed to delete article";
+                    alert(message);
+                }
+            });
+        });
+
+        // Handle delete project buttons
+        const deleteProjectButtons = document.querySelectorAll(
+            ".delete-project-btn",
+        );
+        deleteProjectButtons.forEach((btn) => {
+            btn.addEventListener("click", async (e) => {
+                e.preventDefault();
+                const projectId = (e.target as HTMLButtonElement).dataset
+                    .projectId;
+
+                if (
+                    !confirm(
+                        "Are you sure you want to delete this project? This cannot be undone.",
+                    )
+                ) {
+                    return;
+                }
+
+                try {
+                    const { error } = await supabase
+                        .from("projects")
+                        .delete()
+                        .eq("id", projectId);
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    // Reload the page to refresh the list
+                    window.location.reload();
+                } catch (err) {
+                    const message =
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to delete project";
                     alert(message);
                 }
             });
