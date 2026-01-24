@@ -4,7 +4,7 @@ import Navigation from "../components/Navigation.astro";
 import Hero from "../components/Hero.astro";
 import About from "../components/About.astro";
 import Experience from "../components/Experience.astro";
-// import Projects from '../components/Projects.astro';
+import Projects from "../components/Projects.astro";
 import LatestArticles from "../components/LatestArticles.astro";
 import Contact from "../components/Contact.astro";
 import Footer from "../components/Footer.astro";
@@ -18,23 +18,23 @@ const seoData = {
     en: {
         title: "Guilhermo González - Full-Stack Developer",
         description:
-            "Full-Stack Developer passionate about creating innovative digital solutions and exceptional user experiences. Specializing in JavaScript, TypeScript, React, and Node.js.",
+            "Full-Stack Developer passionate about creating innovative digital solutions and exceptional user experiences. Specializing in JavaScript, TypeScript, React, and Node.js. View my portfolio of projects.",
         keywords:
-            "Full-Stack Developer, Web Developer, JavaScript, TypeScript, React, Node.js, Python, Software Engineer, Frontend, Backend",
+            "Full-Stack Developer, Web Developer, JavaScript, TypeScript, React, Node.js, Python, Software Engineer, Frontend, Backend, Portfolio, Projects, Web Applications",
     },
     pt: {
         title: "Guilhermo González - Desenvolvedor Full-Stack",
         description:
-            "Desenvolvedor Full-Stack apaixonado por criar soluções digitais inovadoras e experiências excepcionais para usuários. Especialista em JavaScript, TypeScript, React e Node.js.",
+            "Desenvolvedor Full-Stack apaixonado por criar soluções digitais inovadoras e experiências excepcionais para usuários. Especialista em JavaScript, TypeScript, React e Node.js. Veja meu portfólio de projetos.",
         keywords:
-            "Desenvolvedor Full-Stack, Desenvolvedor Web, JavaScript, TypeScript, React, Node.js, Python, Engenheiro de Software, Frontend, Backend",
+            "Desenvolvedor Full-Stack, Desenvolvedor Web, JavaScript, TypeScript, React, Node.js, Python, Engenheiro de Software, Frontend, Backend, Portfólio, Projetos, Aplicações Web",
     },
     fr: {
         title: "Guilhermo González - Développeur Full-Stack",
         description:
-            "Développeur Full-Stack passionné par la création de solutions digitales innovantes et d'expériences utilisateur exceptionnelles. Spécialisé en JavaScript, TypeScript, React et Node.js.",
+            "Développeur Full-Stack passionné par la création de solutions digitales innovantes et d'expériences utilisateur exceptionnelles. Spécialisé en JavaScript, TypeScript, React et Node.js. Consultez mon portfolio de projets.",
         keywords:
-            "Développeur Full-Stack, Développeur Web, JavaScript, TypeScript, React, Node.js, Python, Ingénieur Logiciel, Frontend, Backend",
+            "Développeur Full-Stack, Développeur Web, JavaScript, TypeScript, React, Node.js, Python, Ingénieur Logiciel, Frontend, Backend, Portfolio, Projets, Applications Web",
     },
 };
 
@@ -52,7 +52,7 @@ const currentSeo = seoData[lang] || seoData.en;
         <Hero />
         <About />
         <Experience />
-        <!-- <Projects /> -->
+        <Projects />
         <LatestArticles />
         <Contact />
     </main>
