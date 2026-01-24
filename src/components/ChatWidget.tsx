@@ -41,6 +41,25 @@ export default function ChatWidget({ apiUrl, siteAuthor }: ChatWidgetProps) {
     }
   }, [isOpen]);
 
+  // Open chat widget if URL hash is #chatbot
+  useEffect(() => {
+    const checkHash = () => {
+      if (window.location.hash === '#chatbot') {
+        setIsOpen(true);
+      }
+    };
+
+    // Check on mount
+    checkHash();
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', checkHash);
+
+    return () => {
+      window.removeEventListener('hashchange', checkHash);
+    };
+  }, []);
+
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
