@@ -1,0 +1,14 @@
+---
+import ChatWidget from './ChatWidget';
+
+const chatbotApiUrl = import.meta.env.PUBLIC_CHATBOT_API_URL;
+const siteAuthor = import.meta.env.SITE_AUTHOR;
+---
+
+{chatbotApiUrl && (
+  <ChatWidget 
+    client:only="react" 
+    apiUrl={chatbotApiUrl!}
+    siteAuthor={siteAuthor}
+  />
+)}
