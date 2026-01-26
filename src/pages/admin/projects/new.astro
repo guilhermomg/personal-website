@@ -144,16 +144,17 @@ const userEmail = user.email;
                                 Project URL (Demo/Live Site)
                             </label>
                             <input
-                                type="url"
+                                type="text"
                                 id="link"
                                 name="link"
-                                placeholder="https://myproject.com"
+                                placeholder="https://myproject.com or #anchor"
                                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                             <p
                                 class="text-xs text-gray-600 dark:text-gray-400 mt-1"
                             >
-                                Link to the live project or demo
+                                Link to the live project or demo, or an anchor
+                                like #chatbot
                             </p>
                         </div>
 
@@ -345,8 +346,10 @@ const userEmail = user.email;
                         : [];
 
                     // Validate URLs if provided
-                    if (link && !isValidUrl(link)) {
-                        throw new Error("Project URL is not valid");
+                    if (link && !isValidUrl(link) && !isAnchor(link)) {
+                        throw new Error(
+                            "Project URL is not valid. Use a valid URL or an anchor like #chatbot",
+                        );
                     }
                     if (github_link && !isValidUrl(github_link)) {
                         throw new Error("GitHub URL is not valid");
@@ -403,6 +406,11 @@ const userEmail = user.email;
             } catch {
                 return false;
             }
+        }
+
+        // Helper function to validate anchor
+        function isAnchor(str: string): boolean {
+            return str.startsWith("#") && str.length > 1;
         }
     </script>
 </Layout>

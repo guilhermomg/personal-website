@@ -10,6 +10,33 @@ const { data: projects } = await supabase
     .select("id, name, description, tags, link, github_link")
     .eq("status", "published")
     .order("order", { ascending: true });
+
+const isInternalAnchor = (link: string) => {
+    if (link.startsWith("#")) return true;
+    try {
+        const url = new URL(link);
+        const currentUrl = new URL(Astro.url);
+        return (
+            url.origin === currentUrl.origin &&
+            url.pathname === currentUrl.pathname
+        );
+    } catch {
+        return false;
+    }
+};
+
+const getProjectLink = (link: string) => {
+    // If it's a full URL pointing to same page with anchor, return as-is
+    if (link.includes("://")) {
+        return link;
+    }
+    // If it's just an anchor, append to current URL
+    if (link.startsWith("#")) {
+        const baseUrl = Astro.url.toString().split("#")[0];
+        return baseUrl + link;
+    }
+    return link;
+};
 ---
 
 {
@@ -51,13 +78,13 @@ const { data: projects } = await supabase
                             <div class="flex gap-3 mt-auto">
                                 {project.link && (
                                     <a
-                                        href={project.link}
-                                        {...(project.link.startsWith("#")
-                                            ? {}
-                                            : {
+                                        href={getProjectLink(project.link)}
+                                        {...(!isInternalAnchor(project.link)
+                                            ? {
                                                   target: "_blank",
                                                   rel: "noopener noreferrer",
-                                              })}
+                                              }
+                                            : {})}
                                         class="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-md transition-colors text-center"
                                         aria-label={`Visit ${project.name}`}
                                     >
