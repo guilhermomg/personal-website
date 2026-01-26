@@ -52,8 +52,12 @@ const { data: projects } = await supabase
                                 {project.link && (
                                     <a
                                         href={project.link}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
+                                        {...(project.link.startsWith("#")
+                                            ? {}
+                                            : {
+                                                  target: "_blank",
+                                                  rel: "noopener noreferrer",
+                                              })}
                                         class="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-md transition-colors text-center"
                                         aria-label={`Visit ${project.name}`}
                                     >
