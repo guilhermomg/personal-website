@@ -1,0 +1,362 @@
+---
+export const prerender = false;
+
+import Layout from "../../../layouts/Layout.astro";
+import { createServerClient } from "../../../lib/supabase";
+
+const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
+
+const supabase = createServerClient(Astro.cookies);
+const {
+    data: { user },
+    error,
+} = await supabase.auth.getUser();
+
+// Redirect to login if not authenticated
+if (!user || error) {
+    return Astro.redirect("/admin/login");
+}
+
+// Get GitHub username from user metadata
+const userGithubUsername =
+    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+
+if (userGithubUsername !== adminGithubUsername) {
+    // Sign out and redirect
+    await supabase.auth.signOut();
+    return Astro.redirect("/admin/login?error=unauthorized");
+}
+
+// User is authenticated and authorized
+const userEmail = user.email;
+---
+
+<Layout
+    title={`New Experience - Admin - ${import.meta.env.SITE_AUTHOR || "Admin"}`}
+>
+    <div
+        class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800"
+    >
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="mb-8">
+                <a
+                    href="/admin/dashboard"
+                    class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+                >
+                    ← Back to Dashboard
+                </a>
+                <h1
+                    class="text-3xl font-bold text-gray-900 dark:text-white mt-4"
+                >
+                    Create New Experience
+                </h1>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-8">
+                <form id="experience-form" class="space-y-6">
+                    <!-- Title -->
+                    <div>
+                        <label
+                            for="title"
+                            class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                        >
+                            Job Title <span class="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="title"
+                            name="title"
+                            required
+                            placeholder="e.g., Senior Full Stack Developer"
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                    </div>
+
+                    <!-- Company -->
+                    <div>
+                        <label
+                            for="company"
+                            class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                        >
+                            Company/Organization <span class="text-red-500"
+                                >*</span
+                            >
+                        </label>
+                        <input
+                            type="text"
+                            id="company"
+                            name="company"
+                            required
+                            placeholder="e.g., Microsoft"
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                    </div>
+
+                    <!-- Location -->
+                    <div>
+                        <label
+                            for="location"
+                            class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                        >
+                            Location
+                        </label>
+                        <input
+                            type="text"
+                            id="location"
+                            name="location"
+                            placeholder="e.g., Canada"
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                    </div>
+
+                    <!-- Start Date -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label
+                                for="start_month"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                            >
+                                Start Month <span class="text-red-500">*</span>
+                            </label>
+                            <select
+                                id="start_month"
+                                name="start_month"
+                                required
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            >
+                                <option value="">Select month</option>
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label
+                                for="start_year"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                            >
+                                Start Year <span class="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="number"
+                                id="start_year"
+                                name="start_year"
+                                required
+                                min="1990"
+                                max={new Date().getFullYear()}
+                                placeholder={new Date()
+                                    .getFullYear()
+                                    .toString()}
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- End Date -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label
+                                for="end_month"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                            >
+                                End Month <span class="text-red-500">*</span>
+                            </label>
+                            <select
+                                id="end_month"
+                                name="end_month"
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            >
+                                <option value="">Select month</option>
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label
+                                for="end_year"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                            >
+                                End Year <span class="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="number"
+                                id="end_year"
+                                name="end_year"
+                                min="1990"
+                                max={new Date().getFullYear()}
+                                placeholder={new Date()
+                                    .getFullYear()
+                                    .toString()}
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label
+                            for="description"
+                            class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                        >
+                            Accomplishments/Description
+                        </label>
+                        <textarea
+                            id="description"
+                            name="description"
+                            rows="4"
+                            placeholder="Enter each accomplishment on a new line
+- Led development of trading systems
+- Mentored junior developers"
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        ></textarea>
+                        <p
+                            class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+                        >
+                            Enter each accomplishment on a new line. They will
+                            be stored as an array.
+                        </p>
+                    </div>
+
+                    <!-- Skills -->
+                    <div>
+                        <label
+                            for="skills"
+                            class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                        >
+                            Skills/Technologies
+                        </label>
+                        <textarea
+                            id="skills"
+                            name="skills"
+                            rows="3"
+                            placeholder="Separate skills with commas
+Node.js, React, TypeScript, AWS"
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        ></textarea>
+                        <p
+                            class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+                        >
+                            Comma-separated list of technologies/skills
+                        </p>
+                    </div>
+
+                    <!-- Status -->
+                    <div>
+                        <label
+                            for="is_published"
+                            class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                        >
+                            Status
+                        </label>
+                        <select
+                            id="is_published"
+                            name="is_published"
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                            <option value="draft">Draft</option>
+                            <option value="published" selected>Published</option
+                            >
+                        </select>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div
+                        class="flex gap-4 pt-6 border-t border-gray-200 dark:border-gray-700"
+                    >
+                        <button
+                            type="submit"
+                            class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+                        >
+                            Create Experience
+                        </button>
+                        <a
+                            href="/admin/dashboard"
+                            class="px-6 py-2 bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors font-medium"
+                        >
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById("experience-form");
+        if (!form) throw new Error("Experience form not found");
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(e.target as HTMLFormElement);
+
+            const description = ((formData.get("description") as string) || "")
+                .split("\n")
+                .map((line) => line.trim())
+                .filter((line) => line.length > 0);
+
+            const skills = ((formData.get("skills") as string) || "")
+                .split(",")
+                .map((skill) => skill.trim())
+                .filter((skill) => skill.length > 0);
+
+            const payload = {
+                title: formData.get("title"),
+                company: formData.get("company"),
+                location: formData.get("location") || null,
+                start_month: parseInt(formData.get("start_month") as string),
+                start_year: parseInt(formData.get("start_year") as string),
+                end_month: parseInt(formData.get("end_month") as string),
+                end_year: parseInt(formData.get("end_year") as string),
+                description,
+                skills,
+                is_published: formData.get("is_published") === "published",
+            };
+
+            try {
+                const response = await fetch("/api/experiences", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    const error = (await response.json()) as {
+                        message?: string;
+                    };
+                    alert(
+                        `Error: ${error.message || "Failed to create experience"}`,
+                    );
+                    return;
+                }
+
+                const result = (await response.json()) as { id: string };
+                window.location.href = `/admin/experiences/${result.id}/edit?created=true`;
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Error creating experience");
+            }
+        });
+    </script>
+</Layout>
