@@ -76,14 +76,44 @@ const projects = (projectsData ?? []) as Project[];
 const { data: experiencesData, error: experiencesError } = await supabase
     .from("experiences")
     .select(
-        "id,title,company,start_month,start_year,end_month,end_year,is_published,updated_at,created_at",
+        "id,company,start_month,start_year,end_month,end_year,is_published,updated_at,created_at,translations:experience_translations(language_code,title)",
     )
     .order("start_year", { ascending: false })
     .order("start_month", { ascending: false })
     .order("end_year", { ascending: false })
     .order("end_month", { ascending: false });
 
-const experiences = (experiencesData ?? []) as Experience[];
+interface ExperienceWithTranslations {
+    id: string;
+    company?: string | null;
+    start_month?: number | null;
+    start_year?: number | null;
+    end_month?: number | null;
+    end_year?: number | null;
+    is_published?: boolean | null;
+    updated_at?: string | null;
+    created_at?: string | null;
+    translations?: Array<{ language_code: string; title: string }>;
+}
+
+// Transform to include title from English translation or first available
+const experiences = (
+    experiencesData ?? ([] as ExperienceWithTranslations[])
+).map((exp) => ({
+    id: exp.id,
+    company: exp.company,
+    start_month: exp.start_month,
+    start_year: exp.start_year,
+    end_month: exp.end_month,
+    end_year: exp.end_year,
+    is_published: exp.is_published,
+    updated_at: exp.updated_at,
+    created_at: exp.created_at,
+    title:
+        exp.translations?.find((t) => t.language_code === "en")?.title ||
+        exp.translations?.[0]?.title ||
+        "Untitled",
+})) as Experience[];
 const formatDate = (value?: string | null) => {
     if (!value) return "Not set";
     const date = new Date(value);

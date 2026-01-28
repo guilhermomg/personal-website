@@ -43,10 +43,20 @@ export const PUT: APIRoute = async ({ request, cookies, params }) => {
         const body = await request.json() as any;
 
         // Validate required fields
-        if (!body.title || !body.company || !body.start_month || !body.start_year) {
+        if (!body.company || !body.start_month || !body.start_year) {
             return new Response(
                 JSON.stringify({
-                    message: "Missing required fields (title, company, start_month, start_year)",
+                    message: "Missing required fields (company, start_month, start_year)",
+                }),
+                { status: 400 }
+            );
+        }
+
+        // Validate translations
+        if (!body.translations || Object.keys(body.translations).length === 0) {
+            return new Response(
+                JSON.stringify({
+                    message: "At least one language translation is required",
                 }),
                 { status: 400 }
             );
@@ -56,15 +66,11 @@ export const PUT: APIRoute = async ({ request, cookies, params }) => {
         const { data, error } = await supabase
             .from("experiences")
             .update({
-                title: body.title,
                 company: body.company,
-                location: body.location || null,
                 start_month: body.start_month,
                 start_year: body.start_year,
                 end_month: body.end_month || null,
                 end_year: body.end_year || null,
-                description: body.description || [],
-                skills: body.skills || [],
                 is_published: body.is_published !== false,
             })
             .eq("id", id)
@@ -75,6 +81,45 @@ export const PUT: APIRoute = async ({ request, cookies, params }) => {
             console.error("Supabase error:", error);
             return new Response(
                 JSON.stringify({ message: "Failed to update experience" }),
+                { status: 500 }
+            );
+        }
+
+        // Upsert translations (delete old ones and insert new ones)
+        // First, delete existing translations
+        const { error: deleteError } = await supabase
+            .from("experience_translations")
+            .delete()
+            .eq("experience_id", id);
+
+        if (deleteError) {
+            console.error("Delete translation error:", deleteError);
+            return new Response(
+                JSON.stringify({ message: "Failed to update translations" }),
+                { status: 500 }
+            );
+        }
+
+        // Then insert new translations
+        const translationsToInsert = Object.entries(body.translations).map(
+            ([lang, translation]: [string, any]) => ({
+                experience_id: id,
+                language_code: lang,
+                title: translation.title,
+                location: translation.location || null,
+                description: translation.description || [],
+                skills: translation.skills || [],
+            })
+        );
+
+        const { error: insertError } = await supabase
+            .from("experience_translations")
+            .insert(translationsToInsert);
+
+        if (insertError) {
+            console.error("Insert translation error:", insertError);
+            return new Response(
+                JSON.stringify({ message: "Failed to update translations" }),
                 { status: 500 }
             );
         }

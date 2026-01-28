@@ -34,10 +34,20 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         const body = await request.json() as any;
 
         // Validate required fields
-        if (!body.title || !body.company || !body.start_month || !body.start_year) {
+        if (!body.company || !body.start_month || !body.start_year) {
             return new Response(
                 JSON.stringify({
-                    message: "Missing required fields (title, company, start_month, start_year)",
+                    message: "Missing required fields (company, start_month, start_year)",
+                }),
+                { status: 400 }
+            );
+        }
+
+        // Validate translations
+        if (!body.translations || Object.keys(body.translations).length === 0) {
+            return new Response(
+                JSON.stringify({
+                    message: "At least one language translation is required",
                 }),
                 { status: 400 }
             );
@@ -47,15 +57,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         const { data, error } = await supabase
             .from("experiences")
             .insert({
-                title: body.title,
                 company: body.company,
-                location: body.location || null,
                 start_month: body.start_month,
                 start_year: body.start_year,
                 end_month: body.end_month || null,
                 end_year: body.end_year || null,
-                description: body.description || [],
-                skills: body.skills || [],
                 is_published: body.is_published !== false,
             })
             .select()
@@ -65,6 +71,31 @@ export const POST: APIRoute = async ({ request, cookies }) => {
             console.error("Supabase error:", error);
             return new Response(
                 JSON.stringify({ message: "Failed to create experience" }),
+                { status: 500 }
+            );
+        }
+
+        // Insert translations
+        const experienceId = data.id;
+        const translationsToInsert = Object.entries(body.translations).map(
+            ([lang, translation]: [string, any]) => ({
+                experience_id: experienceId,
+                language_code: lang,
+                title: translation.title,
+                location: translation.location || null,
+                description: translation.description || [],
+                skills: translation.skills || [],
+            })
+        );
+
+        const { error: translationError } = await supabase
+            .from("experience_translations")
+            .insert(translationsToInsert);
+
+        if (translationError) {
+            console.error("Translation error:", translationError);
+            return new Response(
+                JSON.stringify({ message: "Failed to create translations" }),
                 { status: 500 }
             );
         }

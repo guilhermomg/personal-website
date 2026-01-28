@@ -1,15 +1,34 @@
 ---
 import { getLangFromUrl, useTranslations } from '../i18n/utils';
-import { createServerClient } from '../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-// Fetch experiences from database
-const supabase = createServerClient(Astro.cookies);
+// Create unauthenticated Supabase client for public data
+const supabase = createClient(
+  import.meta.env.PUBLIC_SUPABASE_URL,
+  import.meta.env.PUBLIC_SUPABASE_ANON_KEY
+);
+
+// Fetch experiences from database with all translations
 const { data: experiencesData } = await supabase
   .from('experiences')
-  .select('*')
+  .select(`
+    id,
+    company,
+    start_month,
+    start_year,
+    end_month,
+    end_year,
+    translations:experience_translations(
+      language_code,
+      title,
+      location,
+      description,
+      skills
+    )
+  `)
   .eq('is_published', true)
   .order('start_year', { ascending: false })
   .order('start_month', { ascending: false })
@@ -27,17 +46,50 @@ const getMonthName = (month: number | null) => {
 };
 
 // Transform database experiences to component format
-const experiences = (experiencesData || []).map(exp => ({
-  title: exp.title,
-  company: exp.company,
-  startMonth: getMonthName(exp.start_month),
-  startYear: exp.start_year?.toString() || '',
-  endMonth: exp.end_month ? getMonthName(exp.end_month) : 'Present',
-  endYear: exp.end_year?.toString() || '',
-  location: exp.location || '',
-  description: exp.description || [],
-  technologies: exp.skills || []
-}));
+interface ExperienceTranslation {
+  language_code: string;
+  title: string;
+  location: string | null;
+  description: string[];
+  skills: string[];
+}
+
+interface ExperienceData {
+  id: string;
+  company: string;
+  start_month: number;
+  start_year: number;
+  end_month: number | null;
+  end_year: number | null;
+  translations: ExperienceTranslation[];
+}
+
+const experiences = (experiencesData as ExperienceData[] || []).map(exp => {
+  // Try to get translation for current language, fallback to English
+  let translation = exp.translations?.find(t => t.language_code === lang);
+  
+  // If no translation for current language, fallback to English
+  if (!translation) {
+    translation = exp.translations?.find(t => t.language_code === 'en');
+  }
+  
+  // If still no translation, use the first available
+  if (!translation && exp.translations && exp.translations.length > 0) {
+    translation = exp.translations[0];
+  }
+  
+  return {
+    title: translation?.title || 'Untitled',
+    company: exp.company,
+    startMonth: getMonthName(exp.start_month),
+    startYear: exp.start_year?.toString() || '',
+    endMonth: exp.end_month ? getMonthName(exp.end_month) : 'Present',
+    endYear: exp.end_year?.toString() || '',
+    location: translation?.location || '',
+    description: translation?.description || [],
+    technologies: translation?.skills || []
+  };
+});
 ---
 
 <section id="experience" class="py-20 bg-gray-50 dark:bg-gray-800">
