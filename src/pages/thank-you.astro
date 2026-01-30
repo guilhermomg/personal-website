@@ -1,42 +1,67 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import { getLangFromUrl, useTranslations } from '../i18n/utils';
+import Layout from "../layouts/Layout.astro";
+import { getLangFromUrl, useTranslations } from "../i18n/utils";
+import { supabase } from "../lib/supabase";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
+
+// Fetch personal info for title
+const { data: personalInfo } = await supabase
+    .from("personal_info")
+    .select("full_name")
+    .single();
+
+const siteAuthor = personalInfo?.full_name || "Developer";
 ---
 
-<Layout 
-  title="Thank You - Guilhermo González"
-  description="Thank you for getting in touch! I'll get back to you as soon as possible."
-  noindex={true}
+<Layout
+    title={`Thank You - ${siteAuthor}`}
+    description="Thank you for getting in touch! I'll get back to you as soon as possible."
+    noindex={true}
 >
-  <main class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
-    <div class="max-w-md w-full text-center">
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
-        <!-- Success Icon -->
-        <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900 mb-6">
-          <svg class="h-8 w-8 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-          </svg>
+    <main
+        class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4"
+    >
+        <div class="max-w-md w-full text-center">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
+                <!-- Success Icon -->
+                <div
+                    class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900 mb-6"
+                >
+                    <svg
+                        class="h-8 w-8 text-green-600 dark:text-green-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+
+                <!-- Thank You Message -->
+                <h1
+                    class="text-2xl font-bold text-gray-900 dark:text-white mb-4"
+                >
+                    Thank You!
+                </h1>
+                <p class="text-gray-600 dark:text-gray-400 mb-8">
+                    Your message has been sent successfully. I'll get back to
+                    you as soon as possible.
+                </p>
+
+                <!-- Back to Home Button -->
+                <a
+                    href="/"
+                    class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                >
+                    Back to Home
+                </a>
+            </div>
         </div>
-        
-        <!-- Thank You Message -->
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-          Thank You!
-        </h1>
-        <p class="text-gray-600 dark:text-gray-400 mb-8">
-          Your message has been sent successfully. I'll get back to you as soon as possible.
-        </p>
-        
-        <!-- Back to Home Button -->
-        <a 
-          href="/" 
-          class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
-        >
-          Back to Home
-        </a>
-      </div>
-    </div>
-  </main>
+    </main>
 </Layout>

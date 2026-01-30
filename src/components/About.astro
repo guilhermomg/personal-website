@@ -1,176 +1,333 @@
 ---
-import { getLangFromUrl, useTranslations } from '../i18n/utils';
+import { getLangFromUrl, useTranslations } from "../i18n/utils";
+import { supabase } from "../lib/supabase";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
+// Fetch personal info translations from database
+const { data: translations } = await supabase
+    .from("personal_info_translations")
+    .select("about_title, about_description")
+    .eq("language_code", lang)
+    .single();
+
+// Fetch languages spoken
+const { data: languagesSpoken } = await supabase
+    .from("languages_spoken")
+    .select("language_name, flag_emoji, proficiency_level")
+    .order("order_index", { ascending: true });
+
+const aboutTitle = translations?.about_title || t("about.description");
+const aboutDescription = translations?.about_description || "";
+const aboutParagraphs = aboutDescription
+    .split("\n\n")
+    .filter((p: string) => p.trim());
+
+// Map proficiency levels to translation keys
+const proficiencyMap = {
+    native: "about.language.native",
+    fluent: "about.language.fluent",
+    advanced: "about.language.advanced",
+    beginner: "about.language.beginner",
+} as const;
+
 const skillCategories = {
-  'Frontend': [
-    'JavaScript', 'TypeScript', 'ReactJS', 'Next.js', 'Vue.js', 'Astro',
-    'HTML5', 'CSS3', 'jQuery', 'Bootstrap', 'Tailwind CSS',
-    'Styled Components', 'Flutter (Dart)', 'React Native', 'Android'
-  ],
-  'Backend': [
-    'Node.js', 'Express.js', '.NET Core / MVC', 'C#', 
-    'Java', 'SpringBoot', 'Delphi Pascal', 'C++', 'Kotlin', 'REST APIs',
-    'GraphQL', 'Microservices', 'OpenAI API'  
-  ],
-  'Database': [
-    'PostgreSQL', 'MongoDB', 'MySQL', 'SQL Server', 'SQLite', 'Firebird', 
-    'Oracle', 'Redis'
-  ],
-  'Tools & DevOps': [
-    'Git', 'GitHub', 'GitHub Actions', 'Jenkins', 'TeamCity', 'Docker', 
-    'Azure', 'AWS', 'GCP', 'Vercel', 'CI/CD'
-  ]
+    Frontend: [
+        "JavaScript",
+        "TypeScript",
+        "ReactJS",
+        "Next.js",
+        "Vue.js",
+        "Astro",
+        "HTML5",
+        "CSS3",
+        "jQuery",
+        "Bootstrap",
+        "Tailwind CSS",
+        "Styled Components",
+        "Flutter (Dart)",
+        "React Native",
+        "Android",
+    ],
+    Backend: [
+        "Node.js",
+        "Express.js",
+        ".NET Core / MVC",
+        "C#",
+        "Java",
+        "SpringBoot",
+        "Delphi Pascal",
+        "C++",
+        "Kotlin",
+        "REST APIs",
+        "GraphQL",
+        "Microservices",
+        "OpenAI API",
+    ],
+    Database: [
+        "PostgreSQL",
+        "MongoDB",
+        "MySQL",
+        "SQL Server",
+        "SQLite",
+        "Firebird",
+        "Oracle",
+        "Redis",
+    ],
+    "Tools & DevOps": [
+        "Git",
+        "GitHub",
+        "GitHub Actions",
+        "Jenkins",
+        "TeamCity",
+        "Docker",
+        "Azure",
+        "AWS",
+        "GCP",
+        "Vercel",
+        "CI/CD",
+    ],
 };
 
 const skillTranslationKeys = {
-  'Frontend': 'about.skills.frontend',
-  'Backend': 'about.skills.backend', 
-  'Database': 'about.skills.database',
-  'Tools & DevOps': 'about.skills.tools'
+    Frontend: "about.skills.frontend",
+    Backend: "about.skills.backend",
+    Database: "about.skills.database",
+    "Tools & DevOps": "about.skills.tools",
 };
 ---
 
 <section id="about" class="py-20 bg-white dark:bg-gray-900">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="text-center mb-16">
-      <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-        {t('about.title')}
-      </h2>
-      <div class="w-20 h-1 bg-primary-600 mx-auto mb-8"></div>
-      <p class="max-w-3xl mx-auto text-lg text-gray-600 dark:text-gray-400 leading-relaxed">
-        {t('about.description')}
-      </p>
-    </div>
-    
-    <div class="grid lg:grid-cols-2 gap-12 items-start">
-      <!-- Text Content -->
-      <div class="space-y-6">
-        <div class="prose prose-lg dark:prose-invert">
-          <p class="text-gray-600 dark:text-gray-400 leading-relaxed">
-            {t('about.text1')}
-          </p>
-          
-          <p class="text-gray-600 dark:text-gray-400 leading-relaxed">
-            {t('about.text2')}
-          </p>
-          
-          <p class="text-gray-600 dark:text-gray-400 leading-relaxed">
-            {t('about.text3')}
-          </p>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+            <h2
+                class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4"
+            >
+                {t("about.title")}
+            </h2>
+            <div class="w-20 h-1 bg-primary-600 mx-auto mb-8"></div>
+            <p
+                class="max-w-3xl mx-auto text-lg text-gray-600 dark:text-gray-400 leading-relaxed"
+            >
+                {aboutTitle}
+            </p>
         </div>
-        
-        <!-- Quick Stats -->
-        <div class="flex justify-center pt-6">
-          <div class="text-center p-6 bg-gradient-to-br from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 rounded-xl border border-primary-100 dark:border-primary-800">
-            <div class="text-3xl font-bold text-primary-600 dark:text-primary-400 mb-2">15+</div>
-            <div class="text-sm font-medium text-gray-600 dark:text-gray-400">{t('about.yearsExperience')}</div>
-          </div>
-        </div>
-        
-        <!-- Languages I Speak -->
-        <div class="mt-8 p-6 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800">
-          <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 text-center flex items-center justify-center">
-            <span class="mr-2">🗣️</span>
-            {t('about.languagesSpoken')}
-          </h4>
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <!-- Portuguese -->
-            <div class="flex items-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200">
-              <span class="text-2xl mr-3">🇧🇷</span>
-              <div>
-                <div class="font-medium text-gray-900 dark:text-white">Português</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">{t('about.language.native')}</div>
-              </div>
-            </div>
-            
-            <!-- English -->
-            <div class="flex items-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-red-300 dark:hover:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200">
-              <span class="text-2xl mr-3">🇺🇸</span>
-              <div>
-                <div class="font-medium text-gray-900 dark:text-white">English</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">{t('about.language.fluent')}</div>
-              </div>
-            </div>
-            
-            <!-- Spanish -->
-            <div class="flex items-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-yellow-300 dark:hover:border-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-all duration-200">
-              <span class="text-2xl mr-3">🇪🇸</span>
-              <div>
-                <div class="font-medium text-gray-900 dark:text-white">Español</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">{t('about.language.fluent')}</div>
-              </div>
-            </div>
-            
-            <!-- French -->
-            <div class="flex items-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200">
-              <span class="text-2xl mr-3">🇨🇦</span>
-              <div>
-                <div class="font-medium text-gray-900 dark:text-white">Français</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">{t('about.language.advanced')}</div>
-              </div>
-            </div>
-            
-            <!-- Italian (Beginner) -->
-            <div class="flex items-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 opacity-75 relative overflow-hidden">
-              <span class="text-2xl mr-3">🇮🇹</span>
-              <div>
-                <div class="font-medium text-gray-900 dark:text-white">
-                  Italiano
+
+        <div class="grid lg:grid-cols-2 gap-12 items-start">
+            <!-- Text Content -->
+            <div class="space-y-6">
+                <div class="prose prose-lg dark:prose-invert">
+                    {
+                        aboutParagraphs.length > 0 ? (
+                            aboutParagraphs.map((paragraph: string) => (
+                                <p class="text-gray-600 dark:text-gray-400 leading-relaxed">
+                                    {paragraph}
+                                </p>
+                            ))
+                        ) : (
+                            <>
+                                <p class="text-gray-600 dark:text-gray-400 leading-relaxed">
+                                    {t("about.text1")}
+                                </p>
+
+                                <p class="text-gray-600 dark:text-gray-400 leading-relaxed">
+                                    {t("about.text2")}
+                                </p>
+
+                                <p class="text-gray-600 dark:text-gray-400 leading-relaxed">
+                                    {t("about.text3")}
+                                </p>
+                            </>
+                        )
+                    }
                 </div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">{t('about.language.beginner')}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Skills Section -->
-      <div class="space-y-8">
-        <h3 class="text-2xl font-semibold text-gray-900 dark:text-white">
-          {t('skills.title')}
-        </h3>
-        
-        <div class="space-y-8">
-          {Object.entries(skillCategories).map(([category, skills]) => (
-            <div class="space-y-4">
-              <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center">
-                <span class="w-2 h-2 bg-primary-600 rounded-full mr-3"></span>
-                {t(skillTranslationKeys[category])}
-              </h4>
-              <div class="grid grid-cols-2 gap-3">
-                {skills.map(skill => (
-                  <div class="group">
-                    <div class="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all duration-200 cursor-default">
-                      <span class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
-                        {skill}
-                      </span>
+
+                <!-- Quick Stats -->
+                <div class="flex justify-center pt-6">
+                    <div
+                        class="text-center p-6 bg-gradient-to-br from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 rounded-xl border border-primary-100 dark:border-primary-800"
+                    >
+                        <div
+                            class="text-3xl font-bold text-primary-600 dark:text-primary-400 mb-2"
+                        >
+                            15+
+                        </div>
+                        <div
+                            class="text-sm font-medium text-gray-600 dark:text-gray-400"
+                        >
+                            {t("about.yearsExperience")}
+                        </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                </div>
+
+                <!-- Languages I Speak -->
+                <div
+                    class="mt-8 p-6 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800"
+                >
+                    <h4
+                        class="text-lg font-semibold text-gray-900 dark:text-white mb-4 text-center flex items-center justify-center"
+                    >
+                        <span class="mr-2">🗣️</span>
+                        {t("about.languagesSpoken")}
+                    </h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        {
+                            languagesSpoken && languagesSpoken.length > 0 ? (
+                                languagesSpoken.map((language) => (
+                                    <div class="flex items-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all duration-200">
+                                        <span class="text-2xl mr-3">
+                                            {language.flag_emoji}
+                                        </span>
+                                        <div>
+                                            <div class="font-medium text-gray-900 dark:text-white">
+                                                {language.language_name}
+                                            </div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                                {t(
+                                                    proficiencyMap[
+                                                        language.proficiency_level as keyof typeof proficiencyMap
+                                                    ],
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <>
+                                    {/* Fallback to hardcoded languages */}
+                                    <div class="flex items-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200">
+                                        <span class="text-2xl mr-3">🇧🇷</span>
+                                        <div>
+                                            <div class="font-medium text-gray-900 dark:text-white">
+                                                Português
+                                            </div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                                {t("about.language.native")}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-red-300 dark:hover:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200">
+                                        <span class="text-2xl mr-3">🇺🇸</span>
+                                        <div>
+                                            <div class="font-medium text-gray-900 dark:text-white">
+                                                English
+                                            </div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                                {t("about.language.fluent")}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-yellow-300 dark:hover:border-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-all duration-200">
+                                        <span class="text-2xl mr-3">🇪🇸</span>
+                                        <div>
+                                            <div class="font-medium text-gray-900 dark:text-white">
+                                                Español
+                                            </div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                                {t("about.language.fluent")}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200">
+                                        <span class="text-2xl mr-3">🇨🇦</span>
+                                        <div>
+                                            <div class="font-medium text-gray-900 dark:text-white">
+                                                Français
+                                            </div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                                {t("about.language.advanced")}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 opacity-75 relative overflow-hidden">
+                                        <span class="text-2xl mr-3">🇮🇹</span>
+                                        <div>
+                                            <div class="font-medium text-gray-900 dark:text-white">
+                                                Italiano
+                                            </div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                                {t("about.language.beginner")}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            )
+                        }
+                    </div>
+                </div>
             </div>
-          ))}
+
+            <!-- Skills Section -->
+            <div class="space-y-8">
+                <h3
+                    class="text-2xl font-semibold text-gray-900 dark:text-white"
+                >
+                    {t("skills.title")}
+                </h3>
+
+                <div class="space-y-8">
+                    {
+                        Object.entries(skillCategories).map(
+                            ([category, skills]) => (
+                                <div class="space-y-4">
+                                    <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+                                        <span class="w-2 h-2 bg-primary-600 rounded-full mr-3" />
+                                        {t(
+                                            skillTranslationKeys[
+                                                category as keyof typeof skillTranslationKeys
+                                            ] as any,
+                                        )}
+                                    </h4>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        {skills.map((skill) => (
+                                            <div class="group">
+                                                <div class="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all duration-200 cursor-default">
+                                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
+                                                        {skill}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ),
+                        )
+                    }
+                </div>
+
+                <!-- Additional Info -->
+                <div
+                    class="mt-8 p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-xl"
+                >
+                    <h4
+                        class="text-lg font-semibold text-gray-900 dark:text-white mb-3"
+                    >
+                        {t("about.currentlyLearning")}
+                    </h4>
+                    <div class="flex flex-wrap gap-2">
+                        <span
+                            class="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-sm rounded-full border border-yellow-200 dark:border-yellow-700"
+                        >
+                            AI/ML Integration
+                        </span>
+                        <span
+                            class="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-sm rounded-full border border-green-200 dark:border-green-700"
+                        >
+                            OpenAI API
+                        </span>
+                        <span
+                            class="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-sm rounded-full border border-blue-200 dark:border-blue-700"
+                        >
+                            Go
+                        </span>
+                    </div>
+                </div>
+            </div>
         </div>
-        
-        <!-- Additional Info -->
-        <div class="mt-8 p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-xl">
-          <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">{t('about.currentlyLearning')}</h4>
-          <div class="flex flex-wrap gap-2">
-            <span class="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-sm rounded-full border border-yellow-200 dark:border-yellow-700">
-              AI/ML Integration
-            </span>
-            <span class="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-sm rounded-full border border-green-200 dark:border-green-700">
-              OpenAI API
-            </span>
-            <span class="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-sm rounded-full border border-blue-200 dark:border-blue-700">
-              Go
-            </span>
-          </div>
-        </div>
-      </div>
     </div>
-  </div>
 </section>

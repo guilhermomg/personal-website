@@ -2,6 +2,7 @@
 import { getLangFromUrl, useTranslations } from "../i18n/utils";
 import Analytics from "@vercel/analytics/astro";
 import ChatButton from "../components/ChatButton.astro";
+import { supabase } from "../lib/supabase";
 
 export interface Props {
     title: string;
@@ -13,6 +14,7 @@ export interface Props {
     ogType?: string;
     publishedTime?: string;
     modifiedTime?: string;
+    noindex?: boolean;
     projects?: Array<{
         "@type": string;
         name: string;
@@ -29,16 +31,35 @@ export interface Props {
 
 const {
     title,
-    description = import.meta.env.SITE_DESCRIPTION || "",
+    description = "",
     image = "/og-image.jpg",
-    keywords = import.meta.env.SITE_KEYWORDS || "",
-    author = import.meta.env.SITE_AUTHOR || "No author",
+    keywords = "",
+    author,
     canonical,
     ogType = "website",
     publishedTime,
     modifiedTime,
+    noindex = false,
     projects = [],
 } = Astro.props;
+
+// Fetch personal info for structured data
+const { data: personalInfo } = await supabase
+    .from("personal_info")
+    .select(
+        "full_name, github_username, email, linkedin_url, seo_description, seo_keywords",
+    )
+    .single();
+
+const siteAuthor = personalInfo?.full_name || "Developer";
+const siteDescription = description || personalInfo?.seo_description || "";
+const siteKeywords = keywords || personalInfo?.seo_keywords || "";
+const siteEmail = personalInfo?.email || "gui@gonzalez.dev.br";
+const linkedinUrl =
+    personalInfo?.linkedin_url ||
+    "https://www.linkedin.com/in/guilhermogonzalez/";
+const githubUsername = personalInfo?.github_username || "guilhermomg";
+const githubUrl = `https://github.com/${githubUsername}`;
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -55,6 +76,10 @@ const canonicalUrl = canonical
     ? new URL(canonical, Astro.site || "https://gonzalez.dev.br")
     : currentUrl;
 const imageUrl = new URL(image, Astro.site || "https://gonzalez.dev.br");
+
+// Use dynamic description and keywords
+const finalDescription = siteDescription;
+const finalKeywords = siteKeywords;
 
 // Generate hreflang URLs
 const baseUrl = Astro.site || "https://gonzalez.dev.br";
@@ -109,10 +134,13 @@ const additionalHreflangs = [
         <!-- Primary Meta Tags -->
         <title>{title}</title>
         <meta name="title" content={title} />
-        <meta name="description" content={description} />
-        <meta name="keywords" content={keywords} />
-        <meta name="author" content={author} />
-        <meta name="robots" content="index, follow" />
+        <meta name="description" content={siteDescription} />
+        <meta name="keywords" content={siteKeywords} />
+        <meta name="author" content={siteAuthor} />
+        <meta
+            name="robots"
+            content={noindex ? "noindex, nofollow" : "index, follow"}
+        />
         <meta name="language" content={lang} />
 
         <!-- Canonical URL -->
@@ -162,9 +190,9 @@ const additionalHreflangs = [
         <meta property="og:type" content={ogType} />
         <meta property="og:url" content={currentUrl.href} />
         <meta property="og:title" content={title} />
-        <meta property="og:description" content={description} />
+        <meta property="og:description" content={siteDescription} />
         <meta property="og:image" content={imageUrl.href} />
-        <meta property="og:site_name" content="Guilhermo González" />
+        <meta property="og:site_name" content={siteAuthor} />
         <meta
             property="og:locale"
             content={lang === "en"
@@ -195,7 +223,7 @@ const additionalHreflangs = [
         <meta property="twitter:card" content="summary_large_image" />
         <meta property="twitter:url" content={currentUrl.href} />
         <meta property="twitter:title" content={title} />
-        <meta property="twitter:description" content={description} />
+        <meta property="twitter:description" content={siteDescription} />
         <meta property="twitter:image" content={imageUrl.href} />
         <meta property="twitter:creator" content="@guilhermomg" />
 
@@ -247,15 +275,12 @@ const additionalHreflangs = [
             set:html={JSON.stringify({
                 "@context": "https://schema.org",
                 "@type": "Person",
-                name: "Guilhermo González",
+                name: siteAuthor,
                 jobTitle: "Full-Stack Developer",
                 description:
                     "Full-Stack Developer passionate about creating innovative digital solutions and exceptional user experiences.",
                 url: "https://gonzalez.dev.br",
-                sameAs: [
-                    "https://www.linkedin.com/in/guilhermogonzalez/",
-                    "https://github.com/guilhermomg",
-                ],
+                sameAs: [linkedinUrl, githubUrl],
                 knowsAbout: [
                     "JavaScript",
                     "TypeScript",
@@ -272,7 +297,7 @@ const additionalHreflangs = [
                 },
                 contactPoint: {
                     "@type": "ContactPoint",
-                    email: "gui@gonzalez.dev.br",
+                    email: siteEmail,
                     contactType: "professional",
                 },
                 ...(projects.length > 0 && {

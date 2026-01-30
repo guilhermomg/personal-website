@@ -8,11 +8,29 @@ import Projects from "../components/Projects.astro";
 import LatestArticles from "../components/LatestArticles.astro";
 import Contact from "../components/Contact.astro";
 import Footer from "../components/Footer.astro";
-import { getLangFromUrl, useTranslations } from "../i18n/utils";
+import { getLangFromUrl } from "../i18n/utils";
 import { supabase } from "../lib/supabase";
 
 const lang = getLangFromUrl(Astro.url);
-const t = useTranslations(lang);
+
+// Fetch personal info for title/SEO
+const { data: personalInfo } = await supabase
+    .from("personal_info")
+    .select("full_name, seo_description, seo_keywords")
+    .single();
+
+const { data: titleTranslation } = await supabase
+    .from("personal_info_translations")
+    .select("title")
+    .eq("language_code", lang)
+    .single();
+
+const siteAuthor = personalInfo?.full_name || "Developer";
+const siteTitle = titleTranslation?.title || "";
+const siteDescription = personalInfo?.seo_description || "";
+const siteKeywords = personalInfo?.seo_keywords || "";
+
+const pageTitle = siteTitle ? `${siteAuthor} - ${siteTitle}` : siteAuthor;
 
 // Fetch published projects for SEO
 const { data: projects } = await supabase
@@ -26,38 +44,11 @@ const projectTags = projects
     ? Array.from(new Set(projects.flatMap((p) => p.tags || [])))
     : [];
 
-// SEO data based on language
-const seoData = {
-    en: {
-        title: "Guilhermo González - Full-Stack Developer",
-        description:
-            "Full-Stack Developer passionate about creating innovative digital solutions and exceptional user experiences. Specializing in JavaScript, TypeScript, React, and Node.js. View my portfolio of projects.",
-        keywords:
-            "Full-Stack Developer, Web Developer, JavaScript, TypeScript, React, Node.js, Python, Software Engineer, Frontend, Backend, Portfolio, Projects, Web Applications",
-    },
-    pt: {
-        title: "Guilhermo González - Desenvolvedor Full-Stack",
-        description:
-            "Desenvolvedor Full-Stack apaixonado por criar soluções digitais inovadoras e experiências excepcionais para usuários. Especialista em JavaScript, TypeScript, React e Node.js. Veja meu portfólio de projetos.",
-        keywords:
-            "Desenvolvedor Full-Stack, Desenvolvedor Web, JavaScript, TypeScript, React, Node.js, Python, Engenheiro de Software, Frontend, Backend, Portfólio, Projetos, Aplicações Web",
-    },
-    fr: {
-        title: "Guilhermo González - Développeur Full-Stack",
-        description:
-            "Développeur Full-Stack passionné par la création de solutions digitales innovantes et d'expériences utilisateur exceptionnelles. Spécialisé en JavaScript, TypeScript, React et Node.js. Consultez mon portfolio de projets.",
-        keywords:
-            "Développeur Full-Stack, Développeur Web, JavaScript, TypeScript, React, Node.js, Python, Ingénieur Logiciel, Frontend, Backend, Portfolio, Projets, Applications Web",
-    },
-};
-
-const currentSeo = seoData[lang] || seoData.en;
-
 // Add project tags to keywords
 const enhancedKeywords =
     projectTags.length > 0
-        ? `${currentSeo.keywords}, ${projectTags.join(", ")}`
-        : currentSeo.keywords;
+        ? [siteKeywords, projectTags.join(", ")].filter(Boolean).join(", ")
+        : siteKeywords;
 
 // Create structured data for projects
 const projectsStructuredData =
@@ -69,7 +60,7 @@ const projectsStructuredData =
               url: project.link || project.github_link,
               author: {
                   "@type": "Person",
-                  name: "Guilhermo González",
+                  name: siteAuthor,
               },
               keywords: project.tags?.join(", "),
               ...(project.github_link && {
@@ -80,10 +71,10 @@ const projectsStructuredData =
 ---
 
 <Layout
-    title={currentSeo.title}
-    description={currentSeo.description}
+    title={pageTitle}
+    description={siteDescription}
     keywords={enhancedKeywords}
-    author="Guilhermo González"
+    author={siteAuthor}
     projects={projectsStructuredData}
 >
     <Navigation />

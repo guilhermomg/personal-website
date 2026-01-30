@@ -1,0 +1,905 @@
+---
+export const prerender = false;
+
+import Layout from "../../../layouts/Layout.astro";
+import { createServerClient } from "../../../lib/supabase";
+
+const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
+
+const supabase = createServerClient(Astro.cookies);
+const {
+    data: { user },
+    error,
+} = await supabase.auth.getUser();
+
+// Redirect to login if not authenticated
+if (!user || error) {
+    return Astro.redirect("/admin/login");
+}
+
+// Get GitHub username from user metadata
+const userGithubUsername =
+    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+
+if (userGithubUsername !== adminGithubUsername) {
+    // Sign out and redirect
+    await supabase.auth.signOut();
+    return Astro.redirect("/admin/login?error=unauthorized");
+}
+
+// Fetch personal info
+const { data: personalInfo, error: fetchError } = await supabase
+    .from("personal_info")
+    .select("id, full_name, github_username, email, location, linkedin_url, seo_description, seo_keywords")
+    .single();
+
+// Fetch all translations
+const { data: translations } = await supabase
+    .from("personal_info_translations")
+    .select("*")
+    .order("language_code", { ascending: true });
+
+// Fetch languages spoken
+const { data: languagesSpoken } = await supabase
+    .from("languages_spoken")
+    .select("*")
+    .order("order_index", { ascending: true });
+
+// User is authenticated and authorized
+const userEmail = user.email;
+const siteAuthor = personalInfo?.full_name || "Admin";
+---
+
+<Layout
+    title={`Edit Personal Info - Admin - ${siteAuthor}`}
+>
+    <div
+        class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800"
+    >
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="mb-8">
+                <a
+                    href="/admin/dashboard"
+                    class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+                >
+                    ← Back to Dashboard
+                </a>
+                <h1
+                    class="text-3xl font-bold text-gray-900 dark:text-white mt-4"
+                >
+                    Edit Personal Information
+                </h1>
+            </div>
+
+            <div class="space-y-6">
+                <!-- Basic Information -->
+                <div class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-8">
+                    <h2
+                        class="text-xl font-semibold text-gray-900 dark:text-white mb-6"
+                    >
+                        Basic Information
+                    </h2>
+
+                    <form id="basic-info-form" class="space-y-6">
+                        <input
+                            type="hidden"
+                            id="personal-info-id"
+                            value={personalInfo?.id ?? ""}
+                        />
+
+                        <!-- Full Name -->
+                        <div>
+                            <label
+                                for="full_name"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                            >
+                                Full Name <span class="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="full_name"
+                                name="full_name"
+                                required
+                                value={personalInfo?.full_name ?? ""}
+                                placeholder="Enter your full name"
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                        </div>
+
+                        <!-- GitHub Username -->
+                        <div>
+                            <label
+                                for="github_username"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                            >
+                                GitHub Username
+                            </label>
+                            <input
+                                type="text"
+                                id="github_username"
+                                name="github_username"
+                                value={personalInfo?.github_username ?? ""}
+                                placeholder="yourUsername"
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">GitHub URL will be automatically generated as https://github.com/[username]</p>
+                        </div>
+
+                        <!-- Email -->
+                        <div>
+                            <label
+                                for="email"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                            >
+                                Email
+                            </label>
+                            <input
+                                type="email"
+                                id="email"
+                                name="email"
+                                value={personalInfo?.email ?? ""}
+                                placeholder="your.email@example.com"
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                        </div>
+
+                        <!-- Location -->
+                        <div>
+                            <label
+                                for="location"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                            >
+                                Location
+                            </label>
+                            <input
+                                type="text"
+                                id="location"
+                                name="location"
+                                value={personalInfo?.location ?? ""}
+                                placeholder="City, Country"
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                        </div>
+
+                        <!-- LinkedIn URL -->
+                        <div>
+                            <label
+                                for="linkedin_url"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                            >
+                                LinkedIn URL
+                            </label>
+                            <input
+                                type="url"
+                                id="linkedin_url"
+                                name="linkedin_url"
+                                value={personalInfo?.linkedin_url ?? ""}
+                                placeholder="https://www.linkedin.com/in/yourprofile"
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                        </div>
+
+                        <!-- SEO Description -->
+                        <div>
+                            <label
+                                for="seo_description"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                            >
+                                SEO Description
+                            </label>
+                            <textarea
+                                id="seo_description"
+                                name="seo_description"
+                                placeholder="Enter a SEO-friendly description for search engines"
+                                rows="3"
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500">{personalInfo?.seo_description ?? ""}</textarea>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Recommended: 150-160 characters</p>
+                        </div>
+
+                        <!-- SEO Keywords -->
+                        <div>
+                            <label
+                                for="seo_keywords"
+                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                            >
+                                SEO Keywords
+                            </label>
+                            <textarea
+                                id="seo_keywords"
+                                name="seo_keywords"
+                                placeholder="Enter keywords separated by commas"
+                                rows="2"
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500">{personalInfo?.seo_keywords ?? ""}</textarea>
+                        </div>
+
+                        <!-- Error message -->
+                        <div
+                            id="basic-error-message"
+                            class="hidden rounded-lg bg-red-50 dark:bg-red-900/30 p-4 text-sm text-red-700 dark:text-red-200"
+                        >
+                        </div>
+
+                        <!-- Success message -->
+                        <div
+                            id="basic-success-message"
+                            class="hidden rounded-lg bg-green-50 dark:bg-green-900/30 p-4 text-sm text-green-700 dark:text-green-200"
+                        >
+                            Basic information updated successfully!
+                        </div>
+
+                        <!-- Submit button -->
+                        <div class="flex justify-end">
+                            <button
+                                type="submit"
+                                id="save-basic-btn"
+                                class="px-6 py-3 rounded-md bg-primary-600 text-white font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Save Basic Information
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Translations -->
+                <div class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-8">
+                    <h2
+                        class="text-xl font-semibold text-gray-900 dark:text-white mb-6"
+                    >
+                        Translations
+                    </h2>
+
+                    <div class="space-y-8">
+                        {
+                            ["en", "fr", "pt"].map((lang) => {
+                                const translation = translations?.find(
+                                    (t) => t.language_code === lang,
+                                );
+                                const langNames = {
+                                    en: "English",
+                                    fr: "Français",
+                                    pt: "Português",
+                                };
+
+                                return (
+                                    <div class="border-t border-gray-200 dark:border-gray-700 pt-6 first:border-t-0 first:pt-0">
+                                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                            {langNames[lang as keyof typeof langNames]} ({lang})
+                                        </h3>
+
+                                        <form
+                                            class="translation-form space-y-4"
+                                            data-lang={lang}
+                                            data-translation-id={
+                                                translation?.id ?? ""
+                                            }
+                                        >
+                                            <input
+                                                type="hidden"
+                                                name="language_code"
+                                                value={lang}
+                                            />
+
+                                            <!-- Title -->
+                                            <div>
+                                                <label
+                                                    for={`title_${lang}`}
+                                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                                >
+                                                    Title{" "}
+                                                    <span class="text-red-500">
+                                                        *
+                                                    </span>
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    id={`title_${lang}`}
+                                                    name="title"
+                                                    required
+                                                    value={
+                                                        translation?.title ?? ""
+                                                    }
+                                                    placeholder="e.g., Full-Stack Developer"
+                                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                />
+                                            </div>
+
+                                            <!-- Subtitle -->
+                                            <div>
+                                                <label
+                                                    for={`subtitle_${lang}`}
+                                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                                >
+                                                    Subtitle{" "}
+                                                    <span class="text-red-500">
+                                                        *
+                                                    </span>
+                                                </label>
+                                                <textarea
+                                                    id={`subtitle_${lang}`}
+                                                    name="subtitle"
+                                                    required
+                                                    rows="2"
+                                                    placeholder="Short tagline about yourself"
+                                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                >{translation?.subtitle ?? ""}</textarea>
+                                            </div>
+
+                                            <!-- About Title -->
+                                            <div>
+                                                <label
+                                                    for={`about_title_${lang}`}
+                                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                                >
+                                                    About Title{" "}
+                                                    <span class="text-red-500">
+                                                        *
+                                                    </span>
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    id={`about_title_${lang}`}
+                                                    name="about_title"
+                                                    required
+                                                    value={
+                                                        translation?.about_title ??
+                                                        ""
+                                                    }
+                                                    placeholder="Brief introduction about yourself"
+                                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                />
+                                            </div>
+
+                                            <!-- About Description -->
+                                            <div>
+                                                <label
+                                                    for={`about_description_${lang}`}
+                                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                                >
+                                                    About Description{" "}
+                                                    <span class="text-red-500">
+                                                        *
+                                                    </span>
+                                                </label>
+                                                <textarea
+                                                    id={`about_description_${lang}`}
+                                                    name="about_description"
+                                                    required
+                                                    rows="10"
+                                                    placeholder="Full description about yourself (use double line breaks for paragraphs)"
+                                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono text-sm"
+                                                >{translation?.about_description ?? ""}</textarea>
+                                                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                    Use double line breaks to
+                                                    separate paragraphs
+                                                </p>
+                                            </div>
+
+                                            <!-- Error message -->
+                                            <div
+                                                id={`translation-error-${lang}`}
+                                                class="hidden rounded-lg bg-red-50 dark:bg-red-900/30 p-4 text-sm text-red-700 dark:text-red-200"
+                                            />
+
+                                            <!-- Success message -->
+                                            <div
+                                                id={`translation-success-${lang}`}
+                                                class="hidden rounded-lg bg-green-50 dark:bg-green-900/30 p-4 text-sm text-green-700 dark:text-green-200"
+                                            >
+                                                Translation updated successfully!
+                                            </div>
+
+                                            <!-- Submit button -->
+                                            <div class="flex justify-end">
+                                                <button
+                                                    type="submit"
+                                                    class="save-translation-btn px-6 py-3 rounded-md bg-primary-600 text-white font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    Save {langNames[lang as keyof typeof langNames]}{" "}
+                                                    Translation
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                );
+                            })
+                        }
+                    </div>
+                </div>
+
+                <!-- Languages Spoken -->
+                <div class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2
+                            class="text-xl font-semibold text-gray-900 dark:text-white"
+                        >
+                            Languages Spoken
+                        </h2>
+                        <button
+                            id="add-language-btn"
+                            class="px-4 py-2 rounded-md bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors"
+                        >
+                            + Add Language
+                        </button>
+                    </div>
+
+                    <div id="languages-list" class="space-y-4">
+                        {
+                            languagesSpoken && languagesSpoken.length > 0 ? (
+                                languagesSpoken.map((lang) => (
+                                    <div
+                                        class="language-item flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                                        data-language-id={lang.id}
+                                    >
+                                        <input
+                                            type="text"
+                                            placeholder="Flag emoji"
+                                            value={lang.flag_emoji}
+                                            class="flag-input w-16 px-3 py-2 text-center text-2xl border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Language name"
+                                            value={lang.language_name}
+                                            class="name-input flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                        />
+                                        <select
+                                            class="proficiency-input px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                        >
+                                            <option
+                                                value="native"
+                                                selected={
+                                                    lang.proficiency_level ===
+                                                    "native"
+                                                }
+                                            >
+                                                Native
+                                            </option>
+                                            <option
+                                                value="fluent"
+                                                selected={
+                                                    lang.proficiency_level ===
+                                                    "fluent"
+                                                }
+                                            >
+                                                Fluent
+                                            </option>
+                                            <option
+                                                value="advanced"
+                                                selected={
+                                                    lang.proficiency_level ===
+                                                    "advanced"
+                                                }
+                                            >
+                                                Advanced
+                                            </option>
+                                            <option
+                                                value="beginner"
+                                                selected={
+                                                    lang.proficiency_level ===
+                                                    "beginner"
+                                                }
+                                            >
+                                                Beginner
+                                            </option>
+                                        </select>
+                                        <input
+                                            type="number"
+                                            placeholder="Order"
+                                            value={lang.order_index}
+                                            class="order-input w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                        />
+                                        <button
+                                            class="delete-language-btn px-3 py-2 rounded-md border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm"
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+                                ))
+                            ) : (
+                                <p class="text-gray-500 dark:text-gray-400 text-center py-4">
+                                    No languages added yet. Click "Add Language"
+                                    to get started.
+                                </p>
+                            )
+                        }
+                    </div>
+
+                    <!-- Error message -->
+                    <div
+                        id="languages-error-message"
+                        class="hidden rounded-lg bg-red-50 dark:bg-red-900/30 p-4 text-sm text-red-700 dark:text-red-200 mt-4"
+                    >
+                    </div>
+
+                    <!-- Success message -->
+                    <div
+                        id="languages-success-message"
+                        class="hidden rounded-lg bg-green-50 dark:bg-green-900/30 p-4 text-sm text-green-700 dark:text-green-200 mt-4"
+                    >
+                        Languages updated successfully!
+                    </div>
+
+                    <!-- Submit button -->
+                    <div class="flex justify-end mt-6">
+                        <button
+                            id="save-languages-btn"
+                            class="px-6 py-3 rounded-md bg-primary-600 text-white font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Save Languages
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        import { supabase } from "../../../lib/supabase";
+
+        // Basic Information Form
+        const basicForm = document.getElementById(
+            "basic-info-form",
+        ) as HTMLFormElement;
+        const saveBasicBtn = document.getElementById(
+            "save-basic-btn",
+        ) as HTMLButtonElement;
+        const basicErrorMessage = document.getElementById(
+            "basic-error-message",
+        ) as HTMLDivElement;
+        const basicSuccessMessage = document.getElementById(
+            "basic-success-message",
+        ) as HTMLDivElement;
+
+        if (basicForm) {
+            basicForm.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                saveBasicBtn.disabled = true;
+                basicErrorMessage?.classList.add("hidden");
+                basicSuccessMessage?.classList.add("hidden");
+
+                try {
+                    const personalInfoId = (
+                        document.getElementById(
+                            "personal-info-id",
+                        ) as HTMLInputElement
+                    ).value;
+                    const full_name = (
+                        document.getElementById("full_name") as HTMLInputElement
+                    ).value.trim();
+                    const github_username = (
+                        document.getElementById(
+                            "github_username",
+                        ) as HTMLInputElement
+                    ).value.trim();
+                    const email = (
+                        document.getElementById("email") as HTMLInputElement
+                    ).value.trim();
+                    const location = (
+                        document.getElementById("location") as HTMLInputElement
+                    ).value.trim();
+                    const linkedin_url = (
+                        document.getElementById(
+                            "linkedin_url",
+                        ) as HTMLInputElement
+                    ).value.trim();
+                    const seo_description = (
+                        document.getElementById(
+                            "seo_description",
+                        ) as HTMLTextAreaElement
+                    ).value.trim();
+                    const seo_keywords = (
+                        document.getElementById(
+                            "seo_keywords",
+                        ) as HTMLTextAreaElement
+                    ).value.trim();
+
+                    if (!full_name) {
+                        throw new Error("Full name is required");
+                    }
+
+                    const { error } = await supabase
+                        .from("personal_info")
+                        .update({
+                            full_name,
+                            github_username: github_username || null,
+                            email: email || null,
+                            location: location || null,
+                            linkedin_url: linkedin_url || null,
+                            seo_description: seo_description || null,
+                            seo_keywords: seo_keywords || null,
+                            updated_at: new Date().toISOString(),
+                        })
+                        .eq("id", personalInfoId);
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    if (basicSuccessMessage) {
+                        basicSuccessMessage.classList.remove("hidden");
+                        setTimeout(() => {
+                            basicSuccessMessage.classList.add("hidden");
+                        }, 3000);
+                    }
+                } catch (err) {
+                    const message =
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to update basic information";
+                    if (basicErrorMessage) {
+                        basicErrorMessage.textContent = message;
+                        basicErrorMessage.classList.remove("hidden");
+                    }
+                } finally {
+                    saveBasicBtn.disabled = false;
+                }
+            });
+        }
+
+        // Translation Forms
+        const translationForms = document.querySelectorAll(".translation-form");
+        translationForms.forEach((form) => {
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const submitBtn = form.querySelector(
+                    ".save-translation-btn",
+                ) as HTMLButtonElement;
+                const lang = (form as HTMLElement).dataset.lang!;
+                const translationId = (form as HTMLElement).dataset
+                    .translationId!;
+                const errorMessage = document.getElementById(
+                    `translation-error-${lang}`,
+                ) as HTMLDivElement;
+                const successMessage = document.getElementById(
+                    `translation-success-${lang}`,
+                ) as HTMLDivElement;
+
+                submitBtn.disabled = true;
+                errorMessage?.classList.add("hidden");
+                successMessage?.classList.add("hidden");
+
+                try {
+                    const personalInfoId = (
+                        document.getElementById(
+                            "personal-info-id",
+                        ) as HTMLInputElement
+                    ).value;
+                    const formData = new FormData(form as HTMLFormElement);
+                    const title = formData.get("title") as string;
+                    const subtitle = formData.get("subtitle") as string;
+                    const about_title = formData.get("about_title") as string;
+                    const about_description = formData.get(
+                        "about_description",
+                    ) as string;
+
+                    if (!title || !subtitle || !about_title || !about_description) {
+                        throw new Error("All fields are required");
+                    }
+
+                    if (translationId) {
+                        // Update existing translation
+                        const { error } = await supabase
+                            .from("personal_info_translations")
+                            .update({
+                                title,
+                                subtitle,
+                                about_title,
+                                about_description,
+                                updated_at: new Date().toISOString(),
+                            })
+                            .eq("id", translationId);
+
+                        if (error) throw error;
+                    } else {
+                        // Insert new translation
+                        const { error } = await supabase
+                            .from("personal_info_translations")
+                            .insert({
+                                personal_info_id: personalInfoId,
+                                language_code: lang,
+                                title,
+                                subtitle,
+                                about_title,
+                                about_description,
+                            });
+
+                        if (error) throw error;
+                    }
+
+                    if (successMessage) {
+                        successMessage.classList.remove("hidden");
+                        setTimeout(() => {
+                            successMessage.classList.add("hidden");
+                        }, 3000);
+                    }
+
+                    // Reload page to update translation IDs
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } catch (err) {
+                    const message =
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to update translation";
+                    if (errorMessage) {
+                        errorMessage.textContent = message;
+                        errorMessage.classList.remove("hidden");
+                    }
+                } finally {
+                    submitBtn.disabled = false;
+                }
+            });
+        });
+
+        // Languages Management
+        const addLanguageBtn = document.getElementById("add-language-btn");
+        const languagesList = document.getElementById("languages-list");
+        const saveLanguagesBtn = document.getElementById("save-languages-btn") as HTMLButtonElement;
+        const languagesErrorMessage = document.getElementById(
+            "languages-error-message",
+        );
+        const languagesSuccessMessage = document.getElementById(
+            "languages-success-message",
+        );
+
+        function createLanguageElement(
+            id: string = "",
+            flag: string = "",
+            name: string = "",
+            proficiency: string = "fluent",
+            order: number = 0,
+        ) {
+            const div = document.createElement("div");
+            div.className =
+                "language-item flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg";
+            div.dataset.languageId = id;
+            div.innerHTML = `
+                <input
+                    type="text"
+                    placeholder="Flag emoji"
+                    value="${flag}"
+                    class="flag-input w-16 px-3 py-2 text-center text-2xl border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                />
+                <input
+                    type="text"
+                    placeholder="Language name"
+                    value="${name}"
+                    class="name-input flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                />
+                <select class="proficiency-input px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                    <option value="native" ${proficiency === "native" ? "selected" : ""}>Native</option>
+                    <option value="fluent" ${proficiency === "fluent" ? "selected" : ""}>Fluent</option>
+                    <option value="advanced" ${proficiency === "advanced" ? "selected" : ""}>Advanced</option>
+                    <option value="beginner" ${proficiency === "beginner" ? "selected" : ""}>Beginner</option>
+                </select>
+                <input
+                    type="number"
+                    placeholder="Order"
+                    value="${order}"
+                    class="order-input w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                />
+                <button class="delete-language-btn px-3 py-2 rounded-md border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm">
+                    Delete
+                </button>
+            `;
+
+            const deleteBtn = div.querySelector(".delete-language-btn");
+            deleteBtn?.addEventListener("click", () => {
+                div.remove();
+            });
+
+            return div;
+        }
+
+        addLanguageBtn?.addEventListener("click", () => {
+            const newLanguage = createLanguageElement();
+            languagesList?.appendChild(newLanguage);
+        });
+
+        // Add delete listeners to existing language items
+        document.querySelectorAll(".delete-language-btn").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                const languageItem = (e.target as HTMLElement).closest(
+                    ".language-item",
+                );
+                languageItem?.remove();
+            });
+        });
+
+        saveLanguagesBtn?.addEventListener("click", async () => {
+            saveLanguagesBtn.disabled = true;
+            languagesErrorMessage?.classList.add("hidden");
+            languagesSuccessMessage?.classList.add("hidden");
+
+            try {
+                const personalInfoId = (
+                    document.getElementById(
+                        "personal-info-id",
+                    ) as HTMLInputElement
+                ).value;
+                const languageItems =
+                    document.querySelectorAll(".language-item");
+                const languages: any[] = [];
+
+                languageItems.forEach((item) => {
+                    const id = (item as HTMLElement).dataset.languageId || "";
+                    const flag = (
+                        item.querySelector(".flag-input") as HTMLInputElement
+                    ).value.trim();
+                    const name = (
+                        item.querySelector(".name-input") as HTMLInputElement
+                    ).value.trim();
+                    const proficiency = (
+                        item.querySelector(
+                            ".proficiency-input",
+                        ) as HTMLSelectElement
+                    ).value;
+                    const order = parseInt(
+                        (
+                            item.querySelector(
+                                ".order-input",
+                            ) as HTMLInputElement
+                        ).value,
+                    );
+
+                    if (flag && name) {
+                        languages.push({
+                            id,
+                            flag_emoji: flag,
+                            language_name: name,
+                            proficiency_level: proficiency,
+                            order_index: order,
+                        });
+                    }
+                });
+
+                // Delete all existing languages
+                await supabase
+                    .from("languages_spoken")
+                    .delete()
+                    .eq("personal_info_id", personalInfoId);
+
+                // Insert new languages
+                if (languages.length > 0) {
+                    const { error } = await supabase
+                        .from("languages_spoken")
+                        .insert(
+                            languages.map((lang) => ({
+                                personal_info_id: personalInfoId,
+                                flag_emoji: lang.flag_emoji,
+                                language_name: lang.language_name,
+                                proficiency_level: lang.proficiency_level,
+                                order_index: lang.order_index,
+                            })),
+                        );
+
+                    if (error) throw error;
+                }
+
+                if (languagesSuccessMessage) {
+                    languagesSuccessMessage.classList.remove("hidden");
+                    setTimeout(() => {
+                        languagesSuccessMessage.classList.add("hidden");
+                    }, 3000);
+                }
+
+                // Reload page to refresh the list
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } catch (err) {
+                const message =
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to update languages";
+                if (languagesErrorMessage) {
+                    languagesErrorMessage.textContent = message;
+                    languagesErrorMessage.classList.remove("hidden");
+                }
+            } finally {
+                saveLanguagesBtn.disabled = false;
+            }
+        });
+    </script>
+</Layout>

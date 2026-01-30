@@ -60,6 +60,12 @@ const { data: projectsData, error: projectsError } = await supabase
     .order("order", { ascending: true });
 
 const projects = (projectsData ?? []) as Project[];
+
+const { data: personalInfo } = await supabase
+    .from("personal_info")
+    .select("full_name")
+    .single();
+
 const formatDate = (value?: string | null) => {
     if (!value) return "Not set";
     const date = new Date(value);
@@ -75,9 +81,10 @@ const statusColors = {
     published:
         "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200",
 };
+const siteAuthor = personalInfo?.full_name || "Admin";
 ---
 
-<Layout title={`Admin Dashboard - ${import.meta.env.SITE_AUTHOR || "Admin"}`}>
+<Layout title={`Admin Dashboard - ${siteAuthor}`}>
     <div
         class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800"
     >
@@ -111,6 +118,33 @@ const statusColors = {
                 </div>
 
                 <div class="grid gap-6">
+                    <!-- Personal Info Section -->
+                    <div
+                        class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6"
+                    >
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3
+                                    class="text-lg font-semibold text-gray-900 dark:text-white"
+                                >
+                                    Personal Information
+                                </h3>
+                                <p
+                                    class="text-sm text-gray-600 dark:text-gray-400"
+                                >
+                                    Manage your profile, about section, and
+                                    languages
+                                </p>
+                            </div>
+                            <a
+                                href="/admin/personal-info/edit"
+                                class="px-4 py-2 rounded-md bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors shadow"
+                            >
+                                Edit Personal Info
+                            </a>
+                        </div>
+                    </div>
+
                     <div
                         class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6"
                     >

@@ -1,14 +1,25 @@
 ---
-import ChatWidget from './ChatWidget';
+import ChatWidget from "./ChatWidget";
+import { createServerClient } from "../lib/supabase";
 
 const chatbotApiUrl = import.meta.env.PUBLIC_CHATBOT_API_URL;
-const siteAuthor = import.meta.env.SITE_AUTHOR;
+
+// Fetch siteAuthor from personal_info table
+const supabase = createServerClient(Astro.cookies);
+const { data: personalInfo } = await supabase
+    .from("personal_info")
+    .select("full_name")
+    .single();
+
+const siteAuthor = personalInfo?.full_name || "Admin";
 ---
 
-{chatbotApiUrl && (
-  <ChatWidget 
-    client:only="react" 
-    apiUrl={chatbotApiUrl!}
-    siteAuthor={siteAuthor}
-  />
-)}
+{
+    chatbotApiUrl && (
+        <ChatWidget
+            client:only="react"
+            apiUrl={chatbotApiUrl!}
+            siteAuthor={siteAuthor}
+        />
+    )
+}
