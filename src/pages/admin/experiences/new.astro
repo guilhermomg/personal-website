@@ -27,6 +27,23 @@ if (userGithubUsername !== adminGithubUsername) {
     return Astro.redirect("/admin/login?error=unauthorized");
 }
 
+const { data: siteLanguages } = await supabase
+    .from("site_languages")
+    .select("language_code, language_name, is_default, is_active")
+    .eq("is_active", true)
+    .order("language_code", { ascending: true });
+
+const activeLanguages = (siteLanguages ?? []) as {
+    language_code?: string | null;
+    language_name?: string | null;
+    is_default?: boolean | null;
+}[];
+
+const defaultLanguage =
+    activeLanguages.find((lang) => lang.is_default) ?? activeLanguages[0];
+const defaultLanguageCode = defaultLanguage?.language_code ?? "";
+const defaultLanguageName = defaultLanguage?.language_name ?? "Default";
+
 // User is authenticated and authorized
 const userEmail = user.email;
 
@@ -57,517 +74,380 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
 
             <div class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-8">
                 <form id="experience-form" class="space-y-6">
-                    <!-- Global Fields -->
+                    <!-- Global Fields Section -->
                     <div
-                        class="bg-gray-50 dark:bg-gray-900/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700"
+                        class="border-b border-gray-200 dark:border-gray-700 pb-6"
                     >
                         <h2
-                            class="text-lg font-semibold text-gray-900 dark:text-white mb-4"
+                            class="text-xl font-bold text-gray-900 dark:text-white mb-4"
                         >
-                            General Information
+                            Global Information
                         </h2>
-
-                        <!-- Company -->
-                        <div class="mb-4">
-                            <label
-                                for="company"
-                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                            >
-                                Company/Organization <span class="text-red-500"
-                                    >*</span
-                                >
-                            </label>
-                            <input
-                                type="text"
-                                id="company"
-                                name="company"
-                                required
-                                placeholder="e.g., Microsoft"
-                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                            />
-                        </div>
-
-                        <!-- Dates Grid -->
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label
-                                    for="start_month"
-                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                                >
-                                    Start Month <span class="text-red-500"
-                                        >*</span
-                                    >
-                                </label>
-                                <select
-                                    id="start_month"
-                                    name="start_month"
-                                    required
-                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                >
-                                    <option value="">Select month</option>
-                                    <option value="1">January</option>
-                                    <option value="2">February</option>
-                                    <option value="3">March</option>
-                                    <option value="4">April</option>
-                                    <option value="5">May</option>
-                                    <option value="6">June</option>
-                                    <option value="7">July</option>
-                                    <option value="8">August</option>
-                                    <option value="9">September</option>
-                                    <option value="10">October</option>
-                                    <option value="11">November</option>
-                                    <option value="12">December</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label
-                                    for="start_year"
-                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                                >
-                                    Start Year <span class="text-red-500"
-                                        >*</span
-                                    >
-                                </label>
-                                <input
-                                    type="number"
-                                    id="start_year"
-                                    name="start_year"
-                                    required
-                                    min="1990"
-                                    max={new Date().getFullYear()}
-                                    placeholder={new Date()
-                                        .getFullYear()
-                                        .toString()}
-                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                />
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4 mt-4">
-                            <div>
-                                <label
-                                    for="end_month"
-                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                                >
-                                    End Month
-                                </label>
-                                <select
-                                    id="end_month"
-                                    name="end_month"
-                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                >
-                                    <option value=""
-                                        >Leave empty for Present</option
-                                    >
-                                    <option value="1">January</option>
-                                    <option value="2">February</option>
-                                    <option value="3">March</option>
-                                    <option value="4">April</option>
-                                    <option value="5">May</option>
-                                    <option value="6">June</option>
-                                    <option value="7">July</option>
-                                    <option value="8">August</option>
-                                    <option value="9">September</option>
-                                    <option value="10">October</option>
-                                    <option value="11">November</option>
-                                    <option value="12">December</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label
-                                    for="end_year"
-                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                                >
-                                    End Year
-                                </label>
-                                <input
-                                    type="number"
-                                    id="end_year"
-                                    name="end_year"
-                                    min="1990"
-                                    max={new Date().getFullYear()}
-                                    placeholder="Leave empty for Present"
-                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                />
-                            </div>
-                        </div>
-
-                        <!-- Status -->
-                        <div class="mt-4">
-                            <label
-                                for="is_published"
-                                class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                            >
-                                Status
-                            </label>
-                            <select
-                                id="is_published"
-                                name="is_published"
-                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                            >
-                                <option value="draft">Draft</option>
-                                <option value="published" selected
-                                    >Published</option
-                                >
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Language Tabs -->
-                    <div>
-                        <h2
-                            class="text-lg font-semibold text-gray-900 dark:text-white mb-4"
-                        >
-                            Translations
-                        </h2>
-
-                        <!-- Tab Buttons -->
-                        <div
-                            class="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-700"
-                        >
-                            <button
-                                type="button"
-                                class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-primary-600 text-primary-600 dark:text-primary-400"
-                                data-lang="en"
-                            >
-                                English (EN)
-                            </button>
-                            <button
-                                type="button"
-                                class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                                data-lang="fr"
-                            >
-                                Français (FR)
-                            </button>
-                            <button
-                                type="button"
-                                class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                                data-lang="pt"
-                            >
-                                Português (PT)
-                            </button>
-                        </div>
-
-                        <!-- Tab Content -->
                         <div class="space-y-4">
-                            <!-- EN Tab -->
-                            <div class="tab-content" data-lang="en">
+                            <!-- Company -->
+                            <div>
+                                <label
+                                    for="company"
+                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                >
+                                    Company/Organization <span
+                                        class="text-red-500">*</span
+                                    >
+                                </label>
+                                <input
+                                    type="text"
+                                    id="company"
+                                    name="company"
+                                    required
+                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                />
+                            </div>
+
+                            <!-- Start Date -->
+                            <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label
-                                        for="title-en"
+                                        for="start_month"
                                         class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
                                     >
-                                        Job Title <span class="text-red-500"
+                                        Start Month <span class="text-red-500"
+                                            >*</span
+                                        >
+                                    </label>
+                                    <select
+                                        id="start_month"
+                                        name="start_month"
+                                        required
+                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    >
+                                        <option value="">Select month</option>
+                                        <option value="1">January</option>
+                                        <option value="2">February</option>
+                                        <option value="3">March</option>
+                                        <option value="4">April</option>
+                                        <option value="5">May</option>
+                                        <option value="6">June</option>
+                                        <option value="7">July</option>
+                                        <option value="8">August</option>
+                                        <option value="9">September</option>
+                                        <option value="10">October</option>
+                                        <option value="11">November</option>
+                                        <option value="12">December</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label
+                                        for="start_year"
+                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                    >
+                                        Start Year <span class="text-red-500"
                                             >*</span
                                         >
                                     </label>
                                     <input
-                                        type="text"
-                                        id="title-en"
-                                        name="title-en"
+                                        type="number"
+                                        id="start_year"
+                                        name="start_year"
                                         required
-                                        placeholder="e.g., Senior Full Stack Developer"
+                                        min="1990"
+                                        max={new Date().getFullYear()}
                                         class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
                                     />
-                                </div>
-
-                                <div>
-                                    <label
-                                        for="location-en"
-                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                                    >
-                                        Location
-                                    </label>
-                                    <input
-                                        type="text"
-                                        id="location-en"
-                                        name="location-en"
-                                        placeholder="e.g., Canada"
-                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label
-                                        for="description-en"
-                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                                    >
-                                        Accomplishments/Description
-                                    </label>
-                                    <textarea
-                                        id="description-en"
-                                        name="description-en"
-                                        rows="4"
-                                        placeholder="Enter each accomplishment on a new line"
-                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                    ></textarea>
-                                    <p
-                                        class="text-xs text-gray-600 dark:text-gray-400 mt-1"
-                                    >
-                                        One item per line
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <label
-                                        for="skills-en"
-                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                                    >
-                                        Skills/Technologies
-                                    </label>
-                                    <textarea
-                                        id="skills-en"
-                                        name="skills-en"
-                                        rows="3"
-                                        placeholder="Node.js, React, TypeScript, AWS"
-                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                    ></textarea>
-                                    <p
-                                        class="text-xs text-gray-600 dark:text-gray-400 mt-1"
-                                    >
-                                        Comma-separated list
-                                    </p>
                                 </div>
                             </div>
 
-                            <!-- FR Tab -->
-                            <div class="tab-content hidden" data-lang="fr">
-                                <div class="mb-4 flex gap-2">
-                                    <button
-                                        type="button"
-                                        class="copy-from-en-btn px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/60"
-                                    >
-                                        Copy from English
-                                    </button>
-                                    {
-                                        hasOpenAIKey && (
-                                            <button
-                                                type="button"
-                                                class="translate-btn px-3 py-1 text-sm bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded hover:bg-green-200 dark:hover:bg-green-900/60 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                data-lang="fr"
-                                            >
-                                                Translate from English
-                                            </button>
-                                        )
-                                    }
-                                </div>
-
+                            <!-- End Date -->
+                            <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label
-                                        for="title-fr"
+                                        for="end_month"
                                         class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
                                     >
-                                        Job Title
+                                        End Month
+                                    </label>
+                                    <select
+                                        id="end_month"
+                                        name="end_month"
+                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    >
+                                        <option value="">Ongoing</option>
+                                        <option value="1">January</option>
+                                        <option value="2">February</option>
+                                        <option value="3">March</option>
+                                        <option value="4">April</option>
+                                        <option value="5">May</option>
+                                        <option value="6">June</option>
+                                        <option value="7">July</option>
+                                        <option value="8">August</option>
+                                        <option value="9">September</option>
+                                        <option value="10">October</option>
+                                        <option value="11">November</option>
+                                        <option value="12">December</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label
+                                        for="end_year"
+                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                    >
+                                        End Year
                                     </label>
                                     <input
-                                        type="text"
-                                        id="title-fr"
-                                        name="title-fr"
-                                        placeholder="e.g., Développeur Full Stack Senior"
+                                        type="number"
+                                        id="end_year"
+                                        name="end_year"
+                                        min="1990"
+                                        max={new Date().getFullYear()}
                                         class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
                                     />
-                                </div>
-
-                                <div>
-                                    <label
-                                        for="location-fr"
-                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                                    >
-                                        Location
-                                    </label>
-                                    <input
-                                        type="text"
-                                        id="location-fr"
-                                        name="location-fr"
-                                        placeholder="e.g., Canada"
-                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label
-                                        for="description-fr"
-                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                                    >
-                                        Accomplishments/Description
-                                    </label>
-                                    <textarea
-                                        id="description-fr"
-                                        name="description-fr"
-                                        rows="4"
-                                        placeholder="One item per line"
-                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                    ></textarea>
-                                </div>
-
-                                <div>
-                                    <label
-                                        for="skills-fr"
-                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                                    >
-                                        Skills/Technologies
-                                    </label>
-                                    <textarea
-                                        id="skills-fr"
-                                        name="skills-fr"
-                                        rows="3"
-                                        placeholder="Comma-separated list"
-                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                    ></textarea>
                                 </div>
                             </div>
 
-                            <!-- PT Tab -->
-                            <div class="tab-content hidden" data-lang="pt">
-                                <div class="mb-4 flex gap-2">
-                                    <button
-                                        type="button"
-                                        class="copy-from-en-btn px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/60"
-                                    >
-                                        Copy from English
-                                    </button>
-                                    {
-                                        hasOpenAIKey && (
-                                            <button
-                                                type="button"
-                                                class="translate-btn px-3 py-1 text-sm bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded hover:bg-green-200 dark:hover:bg-green-900/60 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                data-lang="pt"
-                                            >
-                                                Translate from English
-                                            </button>
-                                        )
-                                    }
-                                </div>
-
-                                <div>
-                                    <label
-                                        for="title-pt"
-                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                                    >
-                                        Job Title
-                                    </label>
-                                    <input
-                                        type="text"
-                                        id="title-pt"
-                                        name="title-pt"
-                                        placeholder="e.g., Desenvolvedor Full Stack Sênior"
-                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label
-                                        for="location-pt"
-                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                                    >
-                                        Location
-                                    </label>
-                                    <input
-                                        type="text"
-                                        id="location-pt"
-                                        name="location-pt"
-                                        placeholder="e.g., Canadá"
-                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label
-                                        for="description-pt"
-                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                                    >
-                                        Accomplishments/Description
-                                    </label>
-                                    <textarea
-                                        id="description-pt"
-                                        name="description-pt"
-                                        rows="4"
-                                        placeholder="One item per line"
-                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                    ></textarea>
-                                </div>
-
-                                <div>
-                                    <label
-                                        for="skills-pt"
-                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
-                                    >
-                                        Skills/Technologies
-                                    </label>
-                                    <textarea
-                                        id="skills-pt"
-                                        name="skills-pt"
-                                        rows="3"
-                                        placeholder="Comma-separated list"
-                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                    ></textarea>
-                                </div>
+                            <!-- Status -->
+                            <div>
+                                <label
+                                    for="is_published"
+                                    class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                >
+                                    Status
+                                </label>
+                                <select
+                                    id="is_published"
+                                    name="is_published"
+                                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                >
+                                    <option value="draft">Draft</option>
+                                    <option value="published">Published</option>
+                                </select>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Submit Button -->
-                    <div
-                        class="flex gap-4 pt-6 border-t border-gray-200 dark:border-gray-700"
-                    >
-                        <button
-                            type="submit"
-                            class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+                    <!-- Language Tabs Section -->
+                    <div>
+                        <h2
+                            class="text-xl font-bold text-gray-900 dark:text-white mb-4"
                         >
-                            Create Experience
-                        </button>
+                            Translations
+                        </h2>
+
+                        {
+                            activeLanguages.length > 0 ? (
+                                <>
+                                    <div class="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-700">
+                                        {activeLanguages.map((siteLanguage) => {
+                                            const langCode =
+                                                siteLanguage.language_code ??
+                                                "";
+                                            const isDefault =
+                                                langCode ===
+                                                defaultLanguageCode;
+
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    data-lang={langCode}
+                                                    class={`tab-button px-4 py-2 border-b-2 font-medium text-sm ${
+                                                        isDefault
+                                                            ? "active border-primary-600 text-primary-600 dark:text-primary-400"
+                                                            : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300"
+                                                    }`}
+                                                >
+                                                    {siteLanguage.language_name}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {activeLanguages.map((siteLanguage) => {
+                                        const langCode =
+                                            siteLanguage.language_code ?? "";
+                                        const isDefault =
+                                            langCode === defaultLanguageCode;
+
+                                        return (
+                                            <div
+                                                data-lang={langCode}
+                                                class={`tab-content space-y-4 ${
+                                                    isDefault ? "" : "hidden"
+                                                }`}
+                                            >
+                                                {!isDefault && (
+                                                    <div class="mb-4 flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            class="copy-from-default px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 text-sm font-medium transition-colors"
+                                                            data-lang={langCode}
+                                                        >
+                                                            Copy from{" "}
+                                                            {
+                                                                defaultLanguageName
+                                                            }
+                                                        </button>
+                                                        {hasOpenAIKey && (
+                                                            <button
+                                                                type="button"
+                                                                class="translate-btn px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                data-lang={
+                                                                    langCode
+                                                                }
+                                                            >
+                                                                Translate from{" "}
+                                                                {
+                                                                    defaultLanguageName
+                                                                }
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <label
+                                                        for={`title_${langCode}`}
+                                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                                    >
+                                                        Job Title
+                                                        {isDefault && (
+                                                            <span class="text-red-500">
+                                                                *
+                                                            </span>
+                                                        )}
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        id={`title_${langCode}`}
+                                                        name={`title_${langCode}`}
+                                                        required={isDefault}
+                                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label
+                                                        for={`location_${langCode}`}
+                                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                                    >
+                                                        Location
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        id={`location_${langCode}`}
+                                                        name={`location_${langCode}`}
+                                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label
+                                                        for={`description_${langCode}`}
+                                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                                    >
+                                                        Description (one per
+                                                        line)
+                                                    </label>
+                                                    <textarea
+                                                        id={`description_${langCode}`}
+                                                        name={`description_${langCode}`}
+                                                        rows={4}
+                                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label
+                                                        for={`skills_${langCode}`}
+                                                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                                                    >
+                                                        Skills (comma-separated)
+                                                    </label>
+                                                    <textarea
+                                                        id={`skills_${langCode}`}
+                                                        name={`skills_${langCode}`}
+                                                        rows={2}
+                                                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                    />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </>
+                            ) : (
+                                <p class="text-gray-600 dark:text-gray-400">
+                                    No active languages configured.
+                                </p>
+                            )
+                        }
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div
+                        class="flex justify-between pt-6 border-t border-gray-200 dark:border-gray-700"
+                    >
                         <a
                             href="/admin/dashboard"
-                            class="px-6 py-2 bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors font-medium"
+                            class="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium transition-colors"
                         >
                             Cancel
                         </a>
+                        <button
+                            type="submit"
+                            class="px-6 py-2 bg-primary-600 dark:bg-primary-700 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 font-medium transition-colors"
+                        >
+                            Create Experience
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
+</Layout>
 
-    <script>
-        // Tab switching
-        const tabBtns = document.querySelectorAll(
-            ".tab-btn",
+<script>
+    window.addEventListener("DOMContentLoaded", () => {
+        // Reconstruct active languages from the DOM tabs
+        const tabButtons = document.querySelectorAll(
+            ".tab-button",
+        ) as NodeListOf<HTMLElement>;
+        const activeLanguages: { language_code: string }[] = [];
+        tabButtons.forEach((btn) => {
+            const lang = btn.dataset.lang;
+            if (lang) {
+                activeLanguages.push({
+                    language_code: lang,
+                });
+            }
+        });
+
+        const defaultLanguageCode = activeLanguages[0]?.language_code || "";
+
+        // Tab switching functionality
+        const tabButtons2 = document.querySelectorAll(
+            ".tab-button",
         ) as NodeListOf<HTMLButtonElement>;
         const tabContents = document.querySelectorAll(
             ".tab-content",
-        ) as NodeListOf<HTMLDivElement>;
+        ) as NodeListOf<HTMLElement>;
 
-        tabBtns.forEach((btn) => {
-            btn.addEventListener("click", () => {
-                const lang = btn.dataset.lang;
+        tabButtons2.forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                e.preventDefault();
+                const targetLang = btn.dataset.lang;
 
                 // Update active tab button
-                tabBtns.forEach((b) => {
+                tabButtons2.forEach((b) =>
                     b.classList.remove(
+                        "active",
                         "border-primary-600",
                         "text-primary-600",
                         "dark:text-primary-400",
-                    );
-                    b.classList.add(
-                        "border-transparent",
-                        "text-gray-600",
-                        "dark:text-gray-400",
-                    );
-                });
-                btn.classList.remove(
-                    "border-transparent",
-                    "text-gray-600",
-                    "dark:text-gray-400",
+                    ),
                 );
                 btn.classList.add(
+                    "active",
                     "border-primary-600",
                     "text-primary-600",
                     "dark:text-primary-400",
                 );
 
-                // Show active tab content
+                // Update visible content
                 tabContents.forEach((content) => {
-                    if (content.dataset.lang === lang) {
+                    if (content.dataset.lang === targetLang) {
                         content.classList.remove("hidden");
                     } else {
                         content.classList.add("hidden");
@@ -576,152 +456,139 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
             });
         });
 
-        // Copy from EN functionality
-        const copyBtns = document.querySelectorAll(
-            ".copy-from-en-btn",
+        // Copy from default language
+        const copyButtons = document.querySelectorAll(
+            ".copy-from-default",
         ) as NodeListOf<HTMLButtonElement>;
-        copyBtns.forEach((btn) => {
+        copyButtons.forEach((btn) => {
             btn.addEventListener("click", (e) => {
                 e.preventDefault();
-                const tabContent = btn.closest(
-                    ".tab-content",
-                ) as HTMLDivElement;
-                const lang = tabContent?.dataset.lang;
+                const targetLang = btn.dataset.lang;
 
-                // Get values from EN fields
-                const titleEn = (
-                    document.getElementById("title-en") as HTMLInputElement
+                const defaultTitle = (
+                    document.querySelector(
+                        `#title_${defaultLanguageCode}`,
+                    ) as HTMLInputElement
                 )?.value;
-                const locationEn = (
-                    document.getElementById("location-en") as HTMLInputElement
+                const defaultLocation = (
+                    document.querySelector(
+                        `#location_${defaultLanguageCode}`,
+                    ) as HTMLInputElement
                 )?.value;
-                const descriptionEn = (
-                    document.getElementById(
-                        "description-en",
+                const defaultDescription = (
+                    document.querySelector(
+                        `#description_${defaultLanguageCode}`,
                     ) as HTMLTextAreaElement
                 )?.value;
-                const skillsEn = (
-                    document.getElementById("skills-en") as HTMLTextAreaElement
+                const defaultSkills = (
+                    document.querySelector(
+                        `#skills_${defaultLanguageCode}`,
+                    ) as HTMLTextAreaElement
                 )?.value;
 
-                // Set values to current language fields
-                if (lang) {
-                    const titleField = document.getElementById(
-                        `title-${lang}`,
-                    ) as HTMLInputElement;
-                    const locationField = document.getElementById(
-                        `location-${lang}`,
-                    ) as HTMLInputElement;
-                    const descriptionField = document.getElementById(
-                        `description-${lang}`,
-                    ) as HTMLTextAreaElement;
-                    const skillsField = document.getElementById(
-                        `skills-${lang}`,
-                    ) as HTMLTextAreaElement;
+                const titleField = document.querySelector(
+                    `#title_${targetLang}`,
+                ) as HTMLInputElement;
+                const locationField = document.querySelector(
+                    `#location_${targetLang}`,
+                ) as HTMLInputElement;
+                const descriptionField = document.querySelector(
+                    `#description_${targetLang}`,
+                ) as HTMLTextAreaElement;
+                const skillsField = document.querySelector(
+                    `#skills_${targetLang}`,
+                ) as HTMLTextAreaElement;
 
-                    if (titleField) titleField.value = titleEn;
-                    if (locationField) locationField.value = locationEn;
-                    if (descriptionField)
-                        descriptionField.value = descriptionEn;
-                    if (skillsField) skillsField.value = skillsEn;
-                }
+                if (titleField) titleField.value = defaultTitle || "";
+                if (locationField) locationField.value = defaultLocation || "";
+                if (descriptionField)
+                    descriptionField.value = defaultDescription || "";
+                if (skillsField) skillsField.value = defaultSkills || "";
             });
         });
 
         // Translation functionality
-        const translateBtns = document.querySelectorAll(
+        const translateButtons = document.querySelectorAll(
             ".translate-btn",
         ) as NodeListOf<HTMLButtonElement>;
-        translateBtns.forEach((btn) => {
+        translateButtons.forEach((btn) => {
             btn.addEventListener("click", async (e) => {
                 e.preventDefault();
-
-                const lang = btn.dataset.lang;
-                if (!lang) return;
-
+                const targetLang = btn.dataset.lang;
                 const originalText = btn.textContent;
+
                 btn.disabled = true;
                 btn.textContent = "Translating...";
 
                 try {
-                    // Get English content
-                    const titleEn = (
-                        document.getElementById("title-en") as HTMLInputElement
-                    )?.value;
-                    const locationEn = (
-                        document.getElementById(
-                            "location-en",
+                    const defaultTitle = (
+                        document.querySelector(
+                            `#title_${defaultLanguageCode}`,
                         ) as HTMLInputElement
                     )?.value;
-                    const descriptionEn = (
-                        document.getElementById(
-                            "description-en",
-                        ) as HTMLTextAreaElement
+                    const defaultLocation = (
+                        document.querySelector(
+                            `#location_${defaultLanguageCode}`,
+                        ) as HTMLInputElement
                     )?.value;
-                    const skillsEn = (
-                        document.getElementById(
-                            "skills-en",
-                        ) as HTMLTextAreaElement
-                    )?.value;
-
-                    if (!titleEn?.trim()) {
-                        alert("English title is required for translation");
-                        btn.disabled = false;
-                        btn.textContent = originalText;
-                        return;
-                    }
-
-                    // Process arrays for API
-                    const descriptionArray = descriptionEn
+                    const defaultDescription = (
+                        (
+                            document.querySelector(
+                                `#description_${defaultLanguageCode}`,
+                            ) as HTMLTextAreaElement
+                        )?.value || ""
+                    )
                         .split("\n")
-                        .map((line) => line.trim())
-                        .filter((line) => line.length > 0);
-                    const skillsArray = skillsEn
+                        .filter((line) => line.trim());
+                    const defaultSkills = (
+                        (
+                            document.querySelector(
+                                `#skills_${defaultLanguageCode}`,
+                            ) as HTMLTextAreaElement
+                        )?.value || ""
+                    )
                         .split(",")
-                        .map((skill) => skill.trim())
-                        .filter((skill) => skill.length > 0);
+                        .map((skill) => skill.trim());
 
-                    // Call translation API
                     const response = await fetch("/api/translate", {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
                         },
                         body: JSON.stringify({
-                            title: titleEn,
-                            location: locationEn || null,
-                            description: descriptionArray,
-                            skills: skillsArray,
-                            targetLanguage: lang,
+                            sourceLanguage: defaultLanguageCode,
+                            targetLanguage: targetLang,
+                            title: defaultTitle,
+                            location: defaultLocation,
+                            description: defaultDescription,
+                            skills: defaultSkills,
                         }),
                     });
 
                     if (!response.ok) {
-                        const error = (await response.json()) as {
-                            message?: string;
-                        };
-                        throw new Error(error.message || "Translation failed");
+                        throw new Error(
+                            `HTTP error! status: ${response.status}`,
+                        );
                     }
 
                     const translated = (await response.json()) as {
-                        title: string;
-                        location: string | null;
-                        description: string[];
-                        skills: string[];
+                        title?: string;
+                        location?: string;
+                        description?: string[];
+                        skills?: string[];
                     };
 
-                    // Fill in the translated fields
-                    const titleField = document.getElementById(
-                        `title-${lang}`,
+                    const titleField = document.querySelector(
+                        `#title_${targetLang}`,
                     ) as HTMLInputElement;
-                    const locationField = document.getElementById(
-                        `location-${lang}`,
+                    const locationField = document.querySelector(
+                        `#location_${targetLang}`,
                     ) as HTMLInputElement;
-                    const descriptionField = document.getElementById(
-                        `description-${lang}`,
+                    const descriptionField = document.querySelector(
+                        `#description_${targetLang}`,
                     ) as HTMLTextAreaElement;
-                    const skillsField = document.getElementById(
-                        `skills-${lang}`,
+                    const skillsField = document.querySelector(
+                        `#skills_${targetLang}`,
                     ) as HTMLTextAreaElement;
 
                     if (titleField) titleField.value = translated.title || "";
@@ -756,59 +623,93 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
 
-            const formData = new FormData(e.target as HTMLFormElement);
+            const translations: Record<string, any> = {};
 
-            // Helper to process text array fields
-            const processArray = (text: string) =>
-                text
+            // Process each language
+            activeLanguages.forEach((language) => {
+                const lang = language.language_code;
+                if (!lang) return;
+                const title = (
+                    document.querySelector(`#title_${lang}`) as HTMLInputElement
+                )?.value;
+                const location = (
+                    document.querySelector(
+                        `#location_${lang}`,
+                    ) as HTMLInputElement
+                )?.value;
+                const description = (
+                    (
+                        document.querySelector(
+                            `#description_${lang}`,
+                        ) as HTMLTextAreaElement
+                    )?.value || ""
+                )
                     .split("\n")
                     .map((line) => line.trim())
                     .filter((line) => line.length > 0);
-
-            // Helper to process comma-separated fields
-            const processCommaArray = (text: string) =>
-                text
+                const skills = (
+                    (
+                        document.querySelector(
+                            `#skills_${lang}`,
+                        ) as HTMLTextAreaElement
+                    )?.value || ""
+                )
                     .split(",")
-                    .map((item) => item.trim())
-                    .filter((item) => item.length > 0);
+                    .map((skill) => skill.trim())
+                    .filter((skill) => skill.length > 0);
 
-            // Collect translations
-            const translations: Record<string, any> = {};
-            ["en", "fr", "pt"].forEach((lang) => {
-                const title = formData.get(`title-${lang}`) as string;
-                if (title?.trim()) {
+                if (title) {
                     translations[lang] = {
-                        title: title,
-                        location:
-                            (formData.get(`location-${lang}`) as string) ||
-                            null,
-                        description: processArray(
-                            formData.get(`description-${lang}`) as string,
-                        ),
-                        skills: processCommaArray(
-                            formData.get(`skills-${lang}`) as string,
-                        ),
+                        title,
+                        location: location || null,
+                        description,
+                        skills,
                     };
                 }
             });
 
-            // Ensure at least English is provided
-            if (!translations.en) {
-                alert("English (EN) title is required");
+            if (defaultLanguageCode && !translations[defaultLanguageCode]) {
+                alert(`Default language title is required`);
                 return;
             }
 
             const payload = {
-                company: formData.get("company"),
-                start_month: parseInt(formData.get("start_month") as string),
-                start_year: parseInt(formData.get("start_year") as string),
-                end_month: formData.get("end_month")
-                    ? parseInt(formData.get("end_month") as string)
-                    : null,
-                end_year: formData.get("end_year")
-                    ? parseInt(formData.get("end_year") as string)
-                    : null,
-                is_published: formData.get("is_published") === "published",
+                company: (
+                    document.querySelector("#company") as HTMLInputElement
+                )?.value,
+                start_month: parseInt(
+                    (
+                        document.querySelector(
+                            "#start_month",
+                        ) as HTMLSelectElement
+                    )?.value,
+                ),
+                start_year: parseInt(
+                    (document.querySelector("#start_year") as HTMLInputElement)
+                        ?.value,
+                ),
+                end_month:
+                    parseInt(
+                        (
+                            document.querySelector(
+                                "#end_month",
+                            ) as HTMLSelectElement
+                        )?.value,
+                    ) || null,
+                end_year:
+                    parseInt(
+                        (
+                            document.querySelector(
+                                "#end_year",
+                            ) as HTMLInputElement
+                        )?.value,
+                    ) || null,
+                is_published:
+                    (
+                        document.querySelector(
+                            "#is_published",
+                        ) as HTMLSelectElement
+                    )?.value === "published",
                 translations,
             };
 
@@ -838,5 +739,5 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
                 alert("Error creating experience");
             }
         });
-    </script>
-</Layout>
+    });
+</script>

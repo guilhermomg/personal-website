@@ -33,6 +33,13 @@ const { data: personalInfo, error: fetchError } = await supabase
     .select("id, full_name, github_username, email, location, linkedin_url, seo_description, seo_keywords")
     .single();
 
+// Fetch active site languages
+const { data: siteLanguages } = await supabase
+    .from("site_languages")
+    .select("*")
+    .eq("is_active", true)
+    .order("language_code", { ascending: true });
+
 // Fetch all translations
 const { data: translations } = await supabase
     .from("personal_info_translations")
@@ -248,23 +255,25 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                         Translations
                     </h2>
 
-                    <div class="space-y-8">
-                        {
-                            ["en", "fr", "pt"].map((lang) => {
-                                const translation = translations?.find(
-                                    (t) => t.language_code === lang,
-                                );
-                                const langNames = {
-                                    en: "English",
-                                    fr: "Français",
-                                    pt: "Português",
-                                };
+                    {siteLanguages && siteLanguages.length > 0 ? (
+                        <div class="space-y-8">
+                            {
+                                siteLanguages.map((siteLanguage) => {
+                                    const lang = siteLanguage.language_code;
+                                    const translation = translations?.find(
+                                        (t) => t.language_code === lang,
+                                    );
 
-                                return (
-                                    <div class="border-t border-gray-200 dark:border-gray-700 pt-6 first:border-t-0 first:pt-0">
-                                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                                            {langNames[lang as keyof typeof langNames]} ({lang})
-                                        </h3>
+                                    return (
+                                        <div class="border-t border-gray-200 dark:border-gray-700 pt-6 first:border-t-0 first:pt-0">
+                                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                                {siteLanguage.language_name} ({lang})
+                                                {siteLanguage.is_default && (
+                                                    <span class="ml-2 text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
+                                                        Default
+                                                    </span>
+                                                )}
+                                            </h3>
 
                                         <form
                                             class="translation-form space-y-4"
@@ -394,8 +403,7 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                                                     type="submit"
                                                     class="save-translation-btn px-6 py-3 rounded-md bg-primary-600 text-white font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                 >
-                                                    Save {langNames[lang as keyof typeof langNames]}{" "}
-                                                    Translation
+                                                    Save {siteLanguage.language_name} Translation
                                                 </button>
                                             </div>
                                         </form>
@@ -403,7 +411,20 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                                 );
                             })
                         }
-                    </div>
+                        </div>
+                    ) : (
+                        <div class="text-center py-8">
+                            <p class="text-gray-500 dark:text-gray-400 mb-4">
+                                No active languages found. Please add and activate languages in the dashboard first.
+                            </p>
+                            <a
+                                href="/admin/dashboard"
+                                class="inline-block px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-semibold hover:bg-primary-700 transition-colors"
+                            >
+                                Go to Dashboard
+                            </a>
+                        </div>
+                    )}
                 </div>
 
                 <!-- Languages Spoken -->

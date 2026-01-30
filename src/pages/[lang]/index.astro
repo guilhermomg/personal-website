@@ -1,17 +1,27 @@
 ---
-import Layout from "../layouts/Layout.astro";
-import Navigation from "../components/Navigation.astro";
-import Hero from "../components/Hero.astro";
-import About from "../components/About.astro";
-import Experience from "../components/Experience.astro";
-import Projects from "../components/Projects.astro";
-import LatestArticles from "../components/LatestArticles.astro";
-import Contact from "../components/Contact.astro";
-import Footer from "../components/Footer.astro";
-import { supabase } from "../lib/supabase";
-import { defaultLang } from "../i18n/config";
+import Layout from "../../layouts/Layout.astro";
+import Navigation from "../../components/Navigation.astro";
+import Hero from "../../components/Hero.astro";
+import About from "../../components/About.astro";
+import Experience from "../../components/Experience.astro";
+import Projects from "../../components/Projects.astro";
+import LatestArticles from "../../components/LatestArticles.astro";
+import Contact from "../../components/Contact.astro";
+import Footer from "../../components/Footer.astro";
+import { getLangFromUrl } from "../../i18n/utils";
+import { supabase } from "../../lib/supabase";
+import { languages, defaultLang } from "../../i18n/config";
 
-const lang = defaultLang;
+export async function getStaticPaths() {
+    // Generate paths for all languages except the default one
+    return Object.keys(languages)
+        .filter((lang) => lang !== defaultLang)
+        .map((lang) => ({
+            params: { lang },
+        }));
+}
+
+const lang = Astro.params.lang || defaultLang;
 
 // Fetch personal info for title/SEO
 const { data: personalInfo } = await supabase
@@ -68,6 +78,9 @@ const projectsStructuredData =
               }),
           }))
         : [];
+
+// Determine canonical URL
+const canonicalPath = lang === defaultLang ? "/" : `/${lang}/`;
 ---
 
 <Layout
@@ -76,6 +89,7 @@ const projectsStructuredData =
     keywords={enhancedKeywords}
     author={siteAuthor}
     projects={projectsStructuredData}
+    canonical={canonicalPath}
 >
     <Navigation />
     <main>
