@@ -44,7 +44,7 @@ if (!id) {
 const { data: article, error: fetchError } = await supabase
     .from("articles")
     .select(
-        "id, title, slug, content, status, created_at, updated_at, description, featured_image, keywords, excerpt, read_time"
+        "id, title, slug, content, status, created_at, updated_at, description, featured_image, keywords, excerpt, read_time",
     )
     .eq("id", id)
     .single();
@@ -66,11 +66,17 @@ const formatDate = (value?: string | null) => {
               timeStyle: "short",
           });
 };
+
+// Fetch siteAuthor from personal_info table
+const { data: personalInfo } = await supabase
+    .from("personal_info")
+    .select("full_name")
+    .single();
+
+const siteAuthor = personalInfo?.full_name || "Admin";
 ---
 
-<Layout
-    title={`${article.title ?? "Preview"} - Admin - ${import.meta.env.SITE_AUTHOR || "Admin"}`}
->
+<Layout title={`${article.title ?? "Preview"} - Admin - ${siteAuthor}`}>
     <div
         class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800"
     >

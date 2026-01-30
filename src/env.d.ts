@@ -4,7 +4,6 @@ interface ImportMetaEnv {
   readonly PUBLIC_SUPABASE_URL: string;
   readonly PUBLIC_SUPABASE_ANON_KEY: string;
   readonly GITHUB_USERNAME: string;
-  readonly SITE_AUTHOR?: string;
 }
 
 interface ImportMeta {

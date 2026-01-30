@@ -11,6 +11,14 @@ import { supabase } from "../lib/supabase";
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
+// Fetch personal info for name
+const { data: personalInfo } = await supabase
+    .from("personal_info")
+    .select("full_name")
+    .single();
+
+const siteAuthor = personalInfo?.full_name || "Developer";
+
 // Check if there are any published projects
 const { count: projectsCount } = await supabase
     .from("projects")
@@ -39,7 +47,7 @@ const hasArticles = articlesCount && articlesCount > 0;
                     href={getLocalizedPath("/", lang)}
                     class="text-xl font-bold text-primary-600 hover:text-primary-700 transition-colors"
                 >
-                    Guilhermo González
+                    {siteAuthor}
                 </a>
             </div>
 

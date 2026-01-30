@@ -29,11 +29,17 @@ if (userGithubUsername !== adminGithubUsername) {
 
 // User is authenticated and authorized
 const userEmail = user.email;
+
+// Fetch siteAuthor from personal_info table
+const { data: personalInfo } = await supabase
+    .from("personal_info")
+    .select("full_name")
+    .single();
+
+const siteAuthor = personalInfo?.full_name || "Admin";
 ---
 
-<Layout
-    title={`New Article - Admin - ${import.meta.env.SITE_AUTHOR || "Admin"}`}
->
+<Layout title={`New Article - Admin - ${siteAuthor}`}>
     <div
         class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800"
     >
@@ -392,56 +398,56 @@ const userEmail = user.email;
         const titleInput = document.getElementById("title") as HTMLInputElement;
         const slugInput = document.getElementById("slug") as HTMLInputElement;
         const contentTextarea = document.getElementById(
-            "content"
+            "content",
         ) as HTMLTextAreaElement;
         const saveBtn = document.getElementById(
-            "save-btn"
+            "save-btn",
         ) as HTMLButtonElement;
         const errorMessage = document.getElementById(
-            "error-message"
+            "error-message",
         ) as HTMLDivElement;
         const successMessage = document.getElementById(
-            "success-message"
+            "success-message",
         ) as HTMLDivElement;
         const togglePreviewBtn = document.getElementById(
-            "toggle-preview"
+            "toggle-preview",
         ) as HTMLButtonElement;
         const previewDiv = document.getElementById("preview") as HTMLDivElement;
         const contentContainer = document.getElementById(
-            "content-container"
+            "content-container",
         ) as HTMLDivElement;
         const descriptionTextarea = document.getElementById(
-            "description"
+            "description",
         ) as HTMLTextAreaElement;
         const descCounter = document.getElementById(
-            "desc-counter"
+            "desc-counter",
         ) as HTMLSpanElement;
         const excerptTextarea = document.getElementById(
-            "excerpt"
+            "excerpt",
         ) as HTMLTextAreaElement;
         const excerptCounter = document.getElementById(
-            "excerpt-counter"
+            "excerpt-counter",
         ) as HTMLSpanElement;
         const toggleSeoBtn = document.getElementById(
-            "toggle-seo"
+            "toggle-seo",
         ) as HTMLButtonElement;
         const seoSection = document.getElementById(
-            "seo-section"
+            "seo-section",
         ) as HTMLDivElement;
         const seoChevron = document.getElementById(
-            "seo-chevron"
+            "seo-chevron",
         ) as HTMLElement;
         const featuredImageInput = document.getElementById(
-            "featured_image"
+            "featured_image",
         ) as HTMLInputElement;
         const featuredImageFileInput = document.getElementById(
-            "featured_image_file"
+            "featured_image_file",
         ) as HTMLInputElement;
         const imagePreview = document.getElementById(
-            "image-preview"
+            "image-preview",
         ) as HTMLDivElement;
         const previewImg = document.getElementById(
-            "preview-img"
+            "preview-img",
         ) as HTMLImageElement;
 
         let isPreviewMode = false;
@@ -464,12 +470,12 @@ const userEmail = user.email;
                 if (length > 150) {
                     descCounter.classList.add(
                         "text-amber-600",
-                        "dark:text-amber-400"
+                        "dark:text-amber-400",
                     );
                 } else {
                     descCounter.classList.remove(
                         "text-amber-600",
-                        "dark:text-amber-400"
+                        "dark:text-amber-400",
                     );
                 }
             });
@@ -623,7 +629,7 @@ const userEmail = user.email;
 
                     if (!title || !slug || !content || !description) {
                         throw new Error(
-                            "Title, slug, content, and description are required"
+                            "Title, slug, content, and description are required",
                         );
                     }
 
@@ -648,7 +654,9 @@ const userEmail = user.email;
                         const fileExt = mimeToExtension[mimeType];
 
                         if (!mimeType || !fileExt) {
-                            throw new Error("Unsupported or missing image MIME type");
+                            throw new Error(
+                                "Unsupported or missing image MIME type",
+                            );
                         }
 
                         // Generate unique filename using validated extension
@@ -666,7 +674,7 @@ const userEmail = user.email;
 
                         if (uploadError) {
                             throw new Error(
-                                `Image upload failed: ${uploadError.message}`
+                                `Image upload failed: ${uploadError.message}`,
                             );
                         }
 
@@ -680,7 +688,7 @@ const userEmail = user.email;
 
                     if (description.length > 160) {
                         throw new Error(
-                            "Description must be 160 characters or less"
+                            "Description must be 160 characters or less",
                         );
                     }
 
@@ -692,7 +700,7 @@ const userEmail = user.email;
                             .filter((k) => k.length > 0);
                         if (keywordList.length === 0) {
                             throw new Error(
-                                "Keywords must be comma-separated values"
+                                "Keywords must be comma-separated values",
                             );
                         }
                     }
@@ -706,7 +714,7 @@ const userEmail = user.email;
 
                     if (existing) {
                         throw new Error(
-                            "Slug already exists. Please use a different slug."
+                            "Slug already exists. Please use a different slug.",
                         );
                     }
 

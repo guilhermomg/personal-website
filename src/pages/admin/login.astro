@@ -2,8 +2,23 @@
 export const prerender = false;
 
 import Layout from "../../layouts/Layout.astro";
+import { createServerClient } from "../../lib/supabase";
 
-const siteAuthor = import.meta.env.SITE_AUTHOR || "Admin";
+const supabase = createServerClient(Astro.cookies);
+const {
+    data: { user },
+} = await supabase.auth.getUser();
+
+if (user) {
+    return Astro.redirect("/admin/dashboard");
+}
+
+const { data: personalInfo } = await supabase
+    .from("personal_info")
+    .select("full_name")
+    .single();
+
+const siteAuthor = personalInfo?.full_name || "Admin";
 const errorParam = Astro.url.searchParams.get("error");
 let errorMessage = "";
 
