@@ -47,6 +47,18 @@ type Project = {
     created_at?: string | null;
 };
 
+type Experience = {
+    id: string;
+    title?: string | null;
+    company?: string | null;
+    start_month?: number | null;
+    start_year?: number | null;
+    end_year?: number | null;
+    is_published?: boolean | null;
+    updated_at?: string | null;
+    created_at?: string | null;
+};
+
 const { data: articlesData, error: articlesError } = await supabase
     .from("articles")
     .select("id,title,slug,status,updated_at,created_at")
@@ -102,12 +114,6 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                         </p>
                     </div>
                     <div class="flex gap-3">
-                        <a
-                            href="/admin/articles/new"
-                            class="px-5 py-2 rounded-md bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors shadow h-10 flex items-center"
-                        >
-                            + New Article
-                        </a>
                         <button
                             id="logout-btn"
                             class="px-6 py-2 border border-transparent text-sm font-semibold rounded-md text-white bg-red-600 hover:bg-red-700 transition-colors h-10 flex items-center"
@@ -162,11 +168,19 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                                     articles
                                 </p>
                             </div>
-                            <span
-                                class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200"
-                            >
-                                {articles.length} total
-                            </span>
+                            <div class="flex items-center gap-3">
+                                <span
+                                    class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200"
+                                >
+                                    {articles.length} total
+                                </span>
+                                <a
+                                    href="/admin/articles/new"
+                                    class="px-4 py-2 rounded-md bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors shadow"
+                                >
+                                    + New Article
+                                </a>
+                            </div>
                         </div>
 
                         {
@@ -455,6 +469,174 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                             )
                         }
                     </div>
+
+                    <!-- Experiences Section -->
+                    <div
+                        class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6"
+                    >
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3
+                                    class="text-lg font-semibold text-gray-900 dark:text-white"
+                                >
+                                    Experiences
+                                </h3>
+                                <p
+                                    class="text-sm text-gray-600 dark:text-gray-400"
+                                >
+                                    Manage your work experience and career
+                                    history
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span
+                                    class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200"
+                                >
+                                    {experiences.length} total
+                                </span>
+                                <a
+                                    href="/admin/experiences/new"
+                                    class="px-4 py-2 rounded-md bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors shadow"
+                                >
+                                    + New Experience
+                                </a>
+                            </div>
+                        </div>
+
+                        {
+                            experiencesError && (
+                                <div class="mb-4 rounded-md bg-red-50 dark:bg-red-900/30 p-4 text-sm text-red-700 dark:text-red-200">
+                                    Failed to load experiences:{" "}
+                                    {experiencesError.message}
+                                </div>
+                            )
+                        }
+
+                        {
+                            !experiencesError && experiences.length === 0 ? (
+                                <div class="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-10 text-center">
+                                    <p class="text-gray-700 dark:text-gray-200 font-semibold mb-2">
+                                        No experiences yet
+                                    </p>
+                                    <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">
+                                        Create your first experience to showcase
+                                        your career.
+                                    </p>
+                                    <a
+                                        href="/admin/experiences/new"
+                                        class="px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-semibold hover:bg-primary-700 transition-colors"
+                                    >
+                                        Create experience
+                                    </a>
+                                </div>
+                            ) : (
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                        <thead class="bg-gray-50 dark:bg-gray-800/50">
+                                            <tr>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Title
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Company
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Period
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Status
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Actions
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                            {experiences.map((exp) => {
+                                                const startDate =
+                                                    exp.start_month &&
+                                                    exp.start_year
+                                                        ? `${exp.start_month}/${exp.start_year}`
+                                                        : "N/A";
+                                                const endDate = exp.end_year
+                                                    ? `${exp.end_year}`
+                                                    : "Present";
+
+                                                return (
+                                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
+                                                        <td class="px-4 py-4 whitespace-nowrap">
+                                                            <div class="text-sm font-semibold text-gray-900 dark:text-white">
+                                                                {exp.title ??
+                                                                    "Untitled"}
+                                                            </div>
+                                                        </td>
+                                                        <td class="px-4 py-4 whitespace-nowrap">
+                                                            <div class="text-sm text-gray-700 dark:text-gray-200">
+                                                                {exp.company}
+                                                            </div>
+                                                        </td>
+                                                        <td class="px-4 py-4 whitespace-nowrap">
+                                                            <div class="text-sm text-gray-700 dark:text-gray-200">
+                                                                {startDate} -{" "}
+                                                                {endDate}
+                                                            </div>
+                                                        </td>
+                                                        <td class="px-4 py-4 whitespace-nowrap">
+                                                            <span
+                                                                class={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                                                                    exp.is_published
+                                                                        ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200"
+                                                                        : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                                                                }`}
+                                                            >
+                                                                {exp.is_published
+                                                                    ? "Published"
+                                                                    : "Draft"}
+                                                            </span>
+                                                        </td>
+                                                        <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                            <div class="flex justify-end gap-2">
+                                                                <a
+                                                                    href={`/admin/experiences/${exp.id}/edit`}
+                                                                    class="px-3 py-1 rounded-md bg-primary-600 text-white hover:bg-primary-700 transition-colors text-xs"
+                                                                >
+                                                                    Edit
+                                                                </a>
+                                                                <button
+                                                                    type="button"
+                                                                    data-experience-id={
+                                                                        exp.id
+                                                                    }
+                                                                    class="delete-experience-btn px-3 py-1 rounded-md border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-xs"
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )
+                        }
+                    </div>
                 </div>
             </div>
         </div>
@@ -547,6 +729,46 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                         err instanceof Error
                             ? err.message
                             : "Failed to delete project";
+                    alert(message);
+                }
+            });
+        });
+
+        // Handle delete experience buttons
+        const deleteExperienceButtons = document.querySelectorAll(
+            ".delete-experience-btn",
+        );
+        deleteExperienceButtons.forEach((btn) => {
+            btn.addEventListener("click", async (e) => {
+                e.preventDefault();
+                const experienceId = (e.target as HTMLButtonElement).dataset
+                    .experienceId;
+
+                if (
+                    !confirm(
+                        "Are you sure you want to delete this experience? This cannot be undone.",
+                    )
+                ) {
+                    return;
+                }
+
+                try {
+                    const { error } = await supabase
+                        .from("experiences")
+                        .delete()
+                        .eq("id", experienceId);
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    // Reload the page to refresh the list
+                    window.location.reload();
+                } catch (err) {
+                    const message =
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to delete experience";
                     alert(message);
                 }
             });
