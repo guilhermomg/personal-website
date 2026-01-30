@@ -4,7 +4,7 @@ import {
     useTranslations,
     getLocalizedPath,
 } from "../i18n/utils";
-import { languages } from "../i18n/config";
+import { languages, defaultLang } from "../i18n/config";
 import LanguageSwitcher from "./LanguageSwitcher.astro";
 import { supabase } from "../lib/supabase";
 
@@ -34,6 +34,12 @@ const { count: articlesCount } = await supabase
     .eq("status", "published");
 
 const hasArticles = articlesCount && articlesCount > 0;
+
+// Build language list dynamically from config
+const languagesList = Object.entries(languages).map(([code, name]) => ({
+    code,
+    name,
+}));
 ---
 
 <nav
@@ -91,9 +97,52 @@ const hasArticles = articlesCount && articlesCount > 0;
                 </div>
             </div>
 
-            <!-- Language Switcher -->
+            <!-- Language Switcher & Mobile Menu -->
             <div class="flex items-center space-x-4">
-                <LanguageSwitcher />
+                <!-- Language Dropdown (only show if more than one language) -->
+                {
+                    languagesList.length > 1 && (
+                        <div class="relative group">
+                            <button class="px-3 py-2 rounded-md text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                {lang.toUpperCase()}
+                                <svg
+                                    class="inline-block w-4 h-4 ml-1"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                                    />
+                                </svg>
+                            </button>
+                            <div class="absolute right-0 mt-0 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                                {languagesList.map((langOption) => {
+                                    const isActive = lang === langOption.code;
+                                    const localizedPath = getLocalizedPath(
+                                        "/",
+                                        langOption.code as keyof typeof languages,
+                                    );
+                                    return (
+                                        <a
+                                            href={localizedPath}
+                                            class={`block px-4 py-2 text-sm ${
+                                                isActive
+                                                    ? "bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-semibold"
+                                                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                            } ${langOption.code === languagesList[0].code ? "rounded-t-md" : ""} ${langOption.code === languagesList[languagesList.length - 1].code ? "rounded-b-md" : ""}`}
+                                        >
+                                            {langOption.code.toUpperCase()}
+                                        </a>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )
+                }
 
                 <!-- Mobile menu button -->
                 <div class="md:hidden">
@@ -159,6 +208,35 @@ const hasArticles = articlesCount && articlesCount > 0;
                     href={getLocalizedPath("/#contact", lang)}
                     class="mobile-nav-link">{t("nav.contact")}</a
                 >
+                <!-- Language options in mobile menu (only show if more than one language) -->
+                {
+                    languagesList.length > 1 && (
+                        <div class="border-t border-gray-200 dark:border-gray-700 pt-2">
+                            <p class="px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                                Language
+                            </p>
+                            {languagesList.map((langOption) => {
+                                const isActive = lang === langOption.code;
+                                const localizedPath = getLocalizedPath(
+                                    "/",
+                                    langOption.code as keyof typeof languages,
+                                );
+                                return (
+                                    <a
+                                        href={localizedPath}
+                                        class={`mobile-nav-link ${
+                                            isActive
+                                                ? "bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-semibold"
+                                                : ""
+                                        }`}
+                                    >
+                                        {langOption.code.toUpperCase()}
+                                    </a>
+                                );
+                            })}
+                        </div>
+                    )
+                }
             </div>
         </div>
     </div>

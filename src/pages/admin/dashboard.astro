@@ -55,6 +55,22 @@ type Experience = {
     start_year?: number | null;
     end_year?: number | null;
     is_published?: boolean | null;
+    experience_translations?: ExperienceTranslation[] | null;
+    updated_at?: string | null;
+    created_at?: string | null;
+};
+
+type ExperienceTranslation = {
+    language_code?: string | null;
+    title?: string | null;
+};
+
+type SiteLanguage = {
+    id: string;
+    language_code?: string | null;
+    language_name?: string | null;
+    is_active?: boolean | null;
+    is_default?: boolean | null;
     updated_at?: string | null;
     created_at?: string | null;
 };
@@ -72,6 +88,43 @@ const { data: projectsData, error: projectsError } = await supabase
     .order("order", { ascending: true });
 
 const projects = (projectsData ?? []) as Project[];
+
+const { data: siteLanguagesData, error: siteLanguagesError } = await supabase
+    .from("site_languages")
+    .select(
+        "id, language_code, language_name, is_active, is_default, updated_at, created_at",
+    )
+    .order("language_code", { ascending: true });
+
+const siteLanguages = (siteLanguagesData ?? []) as SiteLanguage[];
+
+const defaultLanguageCode =
+    siteLanguages.find((lang) => lang.is_default)?.language_code ??
+    siteLanguages.find((lang) => lang.is_active)?.language_code ??
+    null;
+
+const { data: experiencesData, error: experiencesError } = await supabase
+    .from("experiences")
+    .select(
+        "id,company,start_month,start_year,end_year,is_published,updated_at,created_at,experience_translations(language_code,title)",
+    )
+    .order("start_year", { ascending: false });
+
+const experiences = (experiencesData ?? []).map((experience) => {
+    const translations = experience.experience_translations ?? [];
+    const defaultTranslation = defaultLanguageCode
+        ? translations.find(
+              (translation) =>
+                  translation.language_code === defaultLanguageCode,
+          )
+        : undefined;
+    const fallbackTranslation = translations[0];
+
+    return {
+        ...experience,
+        title: defaultTranslation?.title ?? fallbackTranslation?.title ?? null,
+    } as Experience;
+});
 
 const { data: personalInfo } = await supabase
     .from("personal_info")
@@ -149,6 +202,221 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                                 Edit Personal Info
                             </a>
                         </div>
+                    </div>
+
+                    <!-- Site Languages Section -->
+                    <div
+                        class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-6"
+                    >
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3
+                                    class="text-lg font-semibold text-gray-900 dark:text-white"
+                                >
+                                    Site Languages
+                                </h3>
+                                <p
+                                    class="text-sm text-gray-600 dark:text-gray-400"
+                                >
+                                    Manage active languages and locale settings
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span
+                                    class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200"
+                                >
+                                    {siteLanguages.length} total
+                                </span>
+                                <button
+                                    type="button"
+                                    id="open-language-modal-btn"
+                                    class="px-4 py-2 rounded-md bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors shadow"
+                                >
+                                    + New Language
+                                </button>
+                            </div>
+                        </div>
+
+                        {
+                            siteLanguagesError && (
+                                <div class="mb-4 rounded-md bg-red-50 dark:bg-red-900/30 p-4 text-sm text-red-700 dark:text-red-200">
+                                    Failed to load languages:{" "}
+                                    {siteLanguagesError.message}
+                                </div>
+                            )
+                        }
+
+                        {
+                            !siteLanguagesError &&
+                            siteLanguages.length === 0 ? (
+                                <div class="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg p-10 text-center">
+                                    <p class="text-gray-700 dark:text-gray-200 font-semibold mb-2">
+                                        No languages yet
+                                    </p>
+                                    <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">
+                                        Add and activate languages for your
+                                        site.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        id="open-language-modal-empty-btn"
+                                        class="px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-semibold hover:bg-primary-700 transition-colors"
+                                    >
+                                        Add Language
+                                    </button>
+                                </div>
+                            ) : (
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                        <thead class="bg-gray-50 dark:bg-gray-800/50">
+                                            <tr>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Code
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Name
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Status
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Default
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Updated
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    class="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                                                >
+                                                    Actions
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                            {siteLanguages.map((lang) => (
+                                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
+                                                    <td class="px-4 py-4 whitespace-nowrap">
+                                                        <div class="text-sm font-semibold text-gray-900 dark:text-white">
+                                                            {lang.language_code ??
+                                                                "-"}
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-4 py-4 whitespace-nowrap">
+                                                        <div class="text-sm text-gray-700 dark:text-gray-200">
+                                                            {lang.language_name ??
+                                                                "-"}
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-4 py-4 whitespace-nowrap">
+                                                        <span
+                                                            class={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                                                                lang.is_active
+                                                                    ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200"
+                                                                    : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                                                            }`}
+                                                        >
+                                                            {lang.is_active
+                                                                ? "Active"
+                                                                : "Inactive"}
+                                                        </span>
+                                                    </td>
+                                                    <td class="px-4 py-4 whitespace-nowrap">
+                                                        {lang.is_default && (
+                                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
+                                                                ⭐ Default
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
+                                                        {formatDate(
+                                                            lang.updated_at ??
+                                                                lang.created_at,
+                                                        )}
+                                                    </td>
+                                                    <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                        <div class="flex justify-end gap-2">
+                                                            <button
+                                                                type="button"
+                                                                class="edit-language-btn px-3 py-1 rounded-md bg-primary-600 text-white hover:bg-primary-700 transition-colors text-xs"
+                                                                data-language-id={
+                                                                    lang.id
+                                                                }
+                                                                data-language-code={
+                                                                    lang.language_code
+                                                                }
+                                                                data-language-name={
+                                                                    lang.language_name
+                                                                }
+                                                                data-language-active={
+                                                                    lang.is_active
+                                                                }
+                                                                data-language-default={
+                                                                    lang.is_default
+                                                                }
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                            {!lang.is_default && (
+                                                                <button
+                                                                    type="button"
+                                                                    class="set-default-btn px-3 py-1 rounded-md border border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-xs"
+                                                                    data-language-id={
+                                                                        lang.id
+                                                                    }
+                                                                    data-language-code={
+                                                                        lang.language_code
+                                                                    }
+                                                                >
+                                                                    Set Default
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                class="toggle-language-btn px-3 py-1 rounded-md text-xs transition-colors"
+                                                                class:list={[
+                                                                    lang.is_active
+                                                                        ? "border border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                                                                        : "border border-green-300 dark:border-green-600 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20",
+                                                                ]}
+                                                                data-language-id={
+                                                                    lang.id
+                                                                }
+                                                                data-language-code={
+                                                                    lang.language_code
+                                                                }
+                                                                data-language-active={
+                                                                    lang.is_active
+                                                                }
+                                                            >
+                                                                {lang.is_active
+                                                                    ? "Deactivate"
+                                                                    : "Activate"}
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )
+                        }
                     </div>
 
                     <div
@@ -567,70 +835,74 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                                             </tr>
                                         </thead>
                                         <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                            {experiences.map((exp) => {
-                                                const startDate =
-                                                    exp.start_month &&
-                                                    exp.start_year
-                                                        ? `${exp.start_month}/${exp.start_year}`
-                                                        : "N/A";
-                                                const endDate = exp.end_year
-                                                    ? `${exp.end_year}`
-                                                    : "Present";
+                                            {experiences.map(
+                                                (exp: Experience) => {
+                                                    const startDate =
+                                                        exp.start_month &&
+                                                        exp.start_year
+                                                            ? `${exp.start_month}/${exp.start_year}`
+                                                            : "N/A";
+                                                    const endDate = exp.end_year
+                                                        ? `${exp.end_year}`
+                                                        : "Present";
 
-                                                return (
-                                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
-                                                        <td class="px-4 py-4 whitespace-nowrap">
-                                                            <div class="text-sm font-semibold text-gray-900 dark:text-white">
-                                                                {exp.title ??
-                                                                    "Untitled"}
-                                                            </div>
-                                                        </td>
-                                                        <td class="px-4 py-4 whitespace-nowrap">
-                                                            <div class="text-sm text-gray-700 dark:text-gray-200">
-                                                                {exp.company}
-                                                            </div>
-                                                        </td>
-                                                        <td class="px-4 py-4 whitespace-nowrap">
-                                                            <div class="text-sm text-gray-700 dark:text-gray-200">
-                                                                {startDate} -{" "}
-                                                                {endDate}
-                                                            </div>
-                                                        </td>
-                                                        <td class="px-4 py-4 whitespace-nowrap">
-                                                            <span
-                                                                class={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                                                                    exp.is_published
-                                                                        ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200"
-                                                                        : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
-                                                                }`}
-                                                            >
-                                                                {exp.is_published
-                                                                    ? "Published"
-                                                                    : "Draft"}
-                                                            </span>
-                                                        </td>
-                                                        <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                            <div class="flex justify-end gap-2">
-                                                                <a
-                                                                    href={`/admin/experiences/${exp.id}/edit`}
-                                                                    class="px-3 py-1 rounded-md bg-primary-600 text-white hover:bg-primary-700 transition-colors text-xs"
-                                                                >
-                                                                    Edit
-                                                                </a>
-                                                                <button
-                                                                    type="button"
-                                                                    data-experience-id={
-                                                                        exp.id
+                                                    return (
+                                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
+                                                            <td class="px-4 py-4 whitespace-nowrap">
+                                                                <div class="text-sm font-semibold text-gray-900 dark:text-white">
+                                                                    {exp.title ??
+                                                                        "Untitled"}
+                                                                </div>
+                                                            </td>
+                                                            <td class="px-4 py-4 whitespace-nowrap">
+                                                                <div class="text-sm text-gray-700 dark:text-gray-200">
+                                                                    {
+                                                                        exp.company
                                                                     }
-                                                                    class="delete-experience-btn px-3 py-1 rounded-md border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-xs"
+                                                                </div>
+                                                            </td>
+                                                            <td class="px-4 py-4 whitespace-nowrap">
+                                                                <div class="text-sm text-gray-700 dark:text-gray-200">
+                                                                    {startDate}{" "}
+                                                                    - {endDate}
+                                                                </div>
+                                                            </td>
+                                                            <td class="px-4 py-4 whitespace-nowrap">
+                                                                <span
+                                                                    class={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                                                                        exp.is_published
+                                                                            ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200"
+                                                                            : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                                                                    }`}
                                                                 >
-                                                                    Delete
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
+                                                                    {exp.is_published
+                                                                        ? "Published"
+                                                                        : "Draft"}
+                                                                </span>
+                                                            </td>
+                                                            <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                                <div class="flex justify-end gap-2">
+                                                                    <a
+                                                                        href={`/admin/experiences/${exp.id}/edit`}
+                                                                        class="px-3 py-1 rounded-md bg-primary-600 text-white hover:bg-primary-700 transition-colors text-xs"
+                                                                    >
+                                                                        Edit
+                                                                    </a>
+                                                                    <button
+                                                                        type="button"
+                                                                        data-experience-id={
+                                                                            exp.id
+                                                                        }
+                                                                        class="delete-experience-btn px-3 py-1 rounded-md border border-red-300 dark:border-red-600 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-xs"
+                                                                    >
+                                                                        Delete
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                },
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
@@ -639,6 +911,133 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Language Modal -->
+    <div
+        id="language-modal"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    >
+        <div
+            class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 max-w-md w-full mx-4"
+        >
+            <div class="flex justify-between items-center mb-6">
+                <h3
+                    id="language-modal-title"
+                    class="text-xl font-semibold text-gray-900 dark:text-white"
+                >
+                    Add Language
+                </h3>
+                <button
+                    id="close-language-modal-btn"
+                    class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                    <svg
+                        class="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <form id="language-form" class="space-y-4">
+                <input type="hidden" id="language-id" />
+
+                <div>
+                    <label
+                        for="language-code"
+                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                    >
+                        Language Code *
+                    </label>
+                    <input
+                        type="text"
+                        id="language-code"
+                        placeholder="e.g., es"
+                        required
+                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                </div>
+
+                <div>
+                    <label
+                        for="language-name"
+                        class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                    >
+                        Language Name *
+                    </label>
+                    <input
+                        type="text"
+                        id="language-name"
+                        placeholder="e.g., Español"
+                        required
+                        class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                </div>
+
+                <div id="language-active-toggle-container" class="hidden pt-2">
+                    <label
+                        class="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
+                    >
+                        <input
+                            type="checkbox"
+                            id="language-active"
+                            class="h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        <span class="font-medium">Active</span>
+                    </label>
+                </div>
+
+                <div id="language-default-toggle-container" class="hidden pt-2">
+                    <label
+                        class="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
+                    >
+                        <input
+                            type="checkbox"
+                            id="language-default"
+                            class="h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        <span class="font-medium">⭐ Set as Default</span>
+                    </label>
+                    <p
+                        class="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-8"
+                    >
+                        Only one language can be default. Setting this will
+                        unset the current default.
+                    </p>
+                </div>
+
+                <div
+                    id="language-form-error"
+                    class="hidden rounded-lg bg-red-50 dark:bg-red-900/30 px-4 py-2 text-sm text-red-700 dark:text-red-200"
+                >
+                </div>
+
+                <div class="flex gap-3 pt-4">
+                    <button
+                        type="button"
+                        id="cancel-language-btn"
+                        class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        id="save-language-btn"
+                        class="flex-1 px-4 py-2 rounded-md bg-primary-600 text-white font-semibold hover:bg-primary-700 transition-colors"
+                    >
+                        Save
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -769,6 +1168,315 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                         err instanceof Error
                             ? err.message
                             : "Failed to delete experience";
+                    alert(message);
+                }
+            });
+        });
+
+        // Handle toggle language buttons
+        const toggleLanguageButtons = document.querySelectorAll(
+            ".toggle-language-btn",
+        );
+        toggleLanguageButtons.forEach((btn) => {
+            btn.addEventListener("click", async (e) => {
+                e.preventDefault();
+                const target = e.target as HTMLButtonElement;
+                const languageId = target.dataset.languageId;
+                const languageCode = target.dataset.languageCode;
+                const isActive = target.dataset.languageActive === "true";
+
+                const action = isActive ? "deactivate" : "activate";
+                const message = `Are you sure you want to ${action} the language "${languageCode}"?`;
+
+                if (!confirm(message)) {
+                    return;
+                }
+
+                try {
+                    const { error } = await supabase
+                        .from("site_languages")
+                        .update({
+                            is_active: !isActive,
+                            updated_at: new Date().toISOString(),
+                        })
+                        .eq("id", languageId);
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    // Reload the page to refresh the list
+                    window.location.reload();
+                } catch (err) {
+                    const message =
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to update language";
+                    alert(message);
+                }
+            });
+        });
+
+        // Language Modal Handling
+        const languageModal = document.getElementById("language-modal");
+        const languageModalTitle = document.getElementById(
+            "language-modal-title",
+        );
+        const languageForm = document.getElementById(
+            "language-form",
+        ) as HTMLFormElement;
+        const languageFormError = document.getElementById(
+            "language-form-error",
+        );
+        const languageIdInput = document.getElementById(
+            "language-id",
+        ) as HTMLInputElement;
+        const languageCodeInput = document.getElementById(
+            "language-code",
+        ) as HTMLInputElement;
+        const languageNameInput = document.getElementById(
+            "language-name",
+        ) as HTMLInputElement;
+        const languageActiveInput = document.getElementById(
+            "language-active",
+        ) as HTMLInputElement;
+        const languageDefaultInput = document.getElementById(
+            "language-default",
+        ) as HTMLInputElement;
+        const languageActiveToggleContainer = document.getElementById(
+            "language-active-toggle-container",
+        );
+        const languageDefaultToggleContainer = document.getElementById(
+            "language-default-toggle-container",
+        );
+
+        const openLanguageModalBtn = document.getElementById(
+            "open-language-modal-btn",
+        );
+        const openLanguageModalEmptyBtn = document.getElementById(
+            "open-language-modal-empty-btn",
+        );
+        const closeLanguageModalBtn = document.getElementById(
+            "close-language-modal-btn",
+        );
+        const cancelLanguageBtn = document.getElementById(
+            "cancel-language-btn",
+        );
+
+        const existingLanguageCodes = new Set(
+            Array.from(document.querySelectorAll(".edit-language-btn")).map(
+                (btn) =>
+                    (
+                        btn as HTMLButtonElement
+                    ).dataset.languageCode?.toLowerCase(),
+            ),
+        );
+
+        function openLanguageModal(isEdit = false) {
+            if (!languageModal) return;
+
+            languageModal.classList.remove("hidden");
+            if (languageModalTitle) {
+                languageModalTitle.textContent = isEdit
+                    ? "Edit Language"
+                    : "Add Language";
+            }
+
+            if (languageActiveToggleContainer) {
+                if (isEdit) {
+                    languageActiveToggleContainer.classList.remove("hidden");
+                } else {
+                    languageActiveToggleContainer.classList.add("hidden");
+                    languageActiveInput.checked = true;
+                }
+            }
+
+            if (languageDefaultToggleContainer) {
+                if (isEdit) {
+                    languageDefaultToggleContainer.classList.remove("hidden");
+                } else {
+                    languageDefaultToggleContainer.classList.add("hidden");
+                    languageDefaultInput.checked = false;
+                }
+            }
+
+            hideLanguageError();
+        }
+
+        function closeLanguageModal() {
+            if (!languageModal || !languageForm) return;
+            languageModal.classList.add("hidden");
+            languageForm.reset();
+            languageIdInput.value = "";
+            hideLanguageError();
+        }
+
+        function showLanguageError(message: string) {
+            if (!languageFormError) return;
+            languageFormError.textContent = message;
+            languageFormError.classList.remove("hidden");
+        }
+
+        function hideLanguageError() {
+            if (!languageFormError) return;
+            languageFormError.classList.add("hidden");
+        }
+
+        openLanguageModalBtn?.addEventListener("click", () =>
+            openLanguageModal(false),
+        );
+        openLanguageModalEmptyBtn?.addEventListener("click", () =>
+            openLanguageModal(false),
+        );
+        closeLanguageModalBtn?.addEventListener("click", closeLanguageModal);
+        cancelLanguageBtn?.addEventListener("click", closeLanguageModal);
+
+        languageModal?.addEventListener("click", (e) => {
+            if (e.target === languageModal) closeLanguageModal();
+        });
+
+        document.querySelectorAll(".edit-language-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const target = btn as HTMLButtonElement;
+                languageIdInput.value = target.dataset.languageId || "";
+                languageCodeInput.value = target.dataset.languageCode || "";
+                languageNameInput.value = target.dataset.languageName || "";
+                languageActiveInput.checked =
+                    target.dataset.languageActive === "true";
+                languageDefaultInput.checked =
+                    target.dataset.languageDefault === "true";
+                openLanguageModal(true);
+            });
+        });
+
+        languageForm?.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            hideLanguageError();
+
+            const id = languageIdInput.value.trim();
+            const code = languageCodeInput.value.trim().toLowerCase();
+            const name = languageNameInput.value.trim();
+            const isActive = languageActiveInput.checked;
+            const isDefault = languageDefaultInput.checked;
+
+            if (!code || !name) {
+                return showLanguageError("Code and name are required");
+            }
+
+            // Check for duplicate code
+            if (id) {
+                // Edit mode - check if code changed and conflicts
+                const originalCode = (
+                    document.querySelector(
+                        `.edit-language-btn[data-language-id="${id}"]`,
+                    ) as HTMLButtonElement
+                )?.dataset.languageCode?.toLowerCase();
+
+                if (code !== originalCode && existingLanguageCodes.has(code)) {
+                    return showLanguageError(
+                        `Language code already exists: ${code}`,
+                    );
+                }
+            } else {
+                // Add mode - check if code exists
+                if (existingLanguageCodes.has(code)) {
+                    return showLanguageError(
+                        `Language code already exists: ${code}`,
+                    );
+                }
+            }
+
+            try {
+                // If setting as default, first unset all other defaults
+                if (isDefault) {
+                    const { error: unsetError } = await supabase
+                        .from("site_languages")
+                        .update({ is_default: false })
+                        .neq("id", id || "");
+
+                    if (unsetError) throw unsetError;
+                }
+
+                if (id) {
+                    // Update existing
+                    const { error } = await supabase
+                        .from("site_languages")
+                        .update({
+                            language_code: code,
+                            language_name: name,
+                            is_active: isActive,
+                            is_default: isDefault,
+                            updated_at: new Date().toISOString(),
+                        })
+                        .eq("id", id);
+
+                    if (error) throw error;
+                } else {
+                    // Insert new
+                    const { error } = await supabase
+                        .from("site_languages")
+                        .insert({
+                            language_code: code,
+                            language_name: name,
+                            is_active: isActive,
+                            is_default: isDefault,
+                        });
+
+                    if (error) throw error;
+                }
+
+                window.location.reload();
+            } catch (err) {
+                showLanguageError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to save language",
+                );
+            }
+        });
+
+        // Handle set as default buttons
+        const setDefaultButtons = document.querySelectorAll(".set-default-btn");
+        setDefaultButtons.forEach((btn) => {
+            btn.addEventListener("click", async (e) => {
+                e.preventDefault();
+                const target = e.target as HTMLButtonElement;
+                const languageId = target.dataset.languageId;
+                const languageCode = target.dataset.languageCode;
+
+                const message = `Are you sure you want to set "${languageCode}" as the default language?`;
+
+                if (!confirm(message)) {
+                    return;
+                }
+
+                try {
+                    // First unset all other defaults
+                    const { error: unsetError } = await supabase
+                        .from("site_languages")
+                        .update({ is_default: false })
+                        .neq("id", languageId);
+
+                    if (unsetError) throw unsetError;
+
+                    // Then set this one as default
+                    const { error } = await supabase
+                        .from("site_languages")
+                        .update({
+                            is_default: true,
+                            updated_at: new Date().toISOString(),
+                        })
+                        .eq("id", languageId);
+
+                    if (error) throw error;
+
+                    // Reload the page to refresh the list
+                    window.location.reload();
+                } catch (err) {
+                    const message =
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to set default language";
                     alert(message);
                 }
             });

@@ -47,19 +47,37 @@ const {
 const { data: personalInfo } = await supabase
     .from("personal_info")
     .select(
-        "full_name, github_username, email, linkedin_url, seo_description, seo_keywords",
+        "full_name, github_username, email, linkedin_url, seo_description, seo_keywords, job_title, og_image_url",
     )
+    .single();
+
+// Fetch skills
+const { data: skills } = await supabase
+    .from("skills")
+    .select("name")
+    .eq("is_active", true)
+    .order("order", { ascending: true });
+
+// Fetch education/alumni info
+const { data: education } = await supabase
+    .from("education")
+    .select("institution, field_of_study")
+    .eq("is_active", true)
+    .limit(1)
     .single();
 
 const siteAuthor = personalInfo?.full_name || "Developer";
 const siteDescription = description || personalInfo?.seo_description || "";
 const siteKeywords = keywords || personalInfo?.seo_keywords || "";
-const siteEmail = personalInfo?.email || "gui@gonzalez.dev.br";
-const linkedinUrl =
-    personalInfo?.linkedin_url ||
-    "https://www.linkedin.com/in/guilhermogonzalez/";
-const githubUsername = personalInfo?.github_username || "guilhermomg";
+const siteEmail = personalInfo?.email || "contact@example.com";
+const linkedinUrl = personalInfo?.linkedin_url || "https://www.linkedin.com/";
+const githubUsername = personalInfo?.github_username || "username";
 const githubUrl = `https://github.com/${githubUsername}`;
+const jobTitle = personalInfo?.job_title || "Developer";
+const ogImageUrl = personalInfo?.og_image_url || "/og-image.jpg";
+const skillsList = skills?.map((s) => s.name) || [];
+const alumniInstitution = education?.institution || "University";
+const fieldOfStudy = education?.field_of_study || "Computer Science";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
@@ -75,11 +93,7 @@ const currentUrl = new URL(
 const canonicalUrl = canonical
     ? new URL(canonical, Astro.site || "https://gonzalez.dev.br")
     : currentUrl;
-const imageUrl = new URL(image, Astro.site || "https://gonzalez.dev.br");
-
-// Use dynamic description and keywords
-const finalDescription = siteDescription;
-const finalKeywords = siteKeywords;
+const imageUrl = new URL(ogImageUrl, Astro.site || "https://gonzalez.dev.br");
 
 // Generate hreflang URLs
 const baseUrl = Astro.site || "https://gonzalez.dev.br";
@@ -276,24 +290,14 @@ const additionalHreflangs = [
                 "@context": "https://schema.org",
                 "@type": "Person",
                 name: siteAuthor,
-                jobTitle: "Full-Stack Developer",
-                description:
-                    "Full-Stack Developer passionate about creating innovative digital solutions and exceptional user experiences.",
+                jobTitle: jobTitle,
+                description: siteDescription,
                 url: "https://gonzalez.dev.br",
                 sameAs: [linkedinUrl, githubUrl],
-                knowsAbout: [
-                    "JavaScript",
-                    "TypeScript",
-                    "React",
-                    "Node.js",
-                    "Python",
-                    "Full-Stack Development",
-                    "Web Development",
-                    "Software Engineering",
-                ],
+                knowsAbout: skillsList,
                 alumniOf: {
                     "@type": "Organization",
-                    name: "Computer Science Education",
+                    name: alumniInstitution,
                 },
                 contactPoint: {
                     "@type": "ContactPoint",
