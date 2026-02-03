@@ -18,6 +18,99 @@ const { data: languagesSpoken } = await supabase
     .select("language_name, flag_emoji, proficiency_level")
     .order("order_index", { ascending: true });
 
+// Fetch skill categories and skills from database
+const { data: skillCategoriesData } = await supabase
+    .from("skill_categories")
+    .select(
+        `
+        id,
+        name,
+        sort_order,
+        skills (
+            id,
+            sort_order,
+            skill_translations (
+                language_code,
+                name
+            )
+        ),
+        sub_categories:skill_categories!parent_category_id (
+            id,
+            name,
+            sort_order,
+            skills (
+                id,
+                sort_order,
+                skill_translations (
+                    language_code,
+                    name
+                )
+            )
+        )
+    `,
+    )
+    .is("parent_category_id", null)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+
+// Transform database data to preserve subcategory hierarchy
+type SkillCategory = {
+    name: string;
+    skills: string[];
+    subcategories: Array<{
+        name: string;
+        skills: string[];
+    }>;
+};
+
+const skillCategories: SkillCategory[] = [];
+
+if (skillCategoriesData) {
+    skillCategoriesData.forEach((category: any) => {
+        // Get skills directly under this category
+        const directSkills = (category.skills || [])
+            .map((skill: any) => {
+                const translation = skill.skill_translations?.find(
+                    (t: any) => t.language_code === lang,
+                );
+                return translation?.name || skill.skill_translations?.[0]?.name;
+            })
+            .filter(Boolean);
+
+        // Get subcategories with their skills
+        const subcategories = (category.sub_categories || [])
+            .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0))
+            .map((subcat: any) => {
+                const subcatSkills = (subcat.skills || [])
+                    .map((skill: any) => {
+                        const translation = skill.skill_translations?.find(
+                            (t: any) => t.language_code === lang,
+                        );
+                        return (
+                            translation?.name ||
+                            skill.skill_translations?.[0]?.name
+                        );
+                    })
+                    .filter(Boolean);
+
+                return {
+                    name: subcat.name,
+                    skills: subcatSkills,
+                };
+            })
+            .filter((subcat: any) => subcat.skills.length > 0);
+
+        // Only add category if it has skills or subcategories with skills
+        if (directSkills.length > 0 || subcategories.length > 0) {
+            skillCategories.push({
+                name: category.name,
+                skills: directSkills,
+                subcategories: subcategories,
+            });
+        }
+    });
+}
+
 const aboutTitle = translations?.about_title || t("about.description");
 const aboutDescription = translations?.about_description || "";
 const aboutParagraphs = aboutDescription
@@ -31,71 +124,6 @@ const proficiencyMap = {
     advanced: "about.language.advanced",
     beginner: "about.language.beginner",
 } as const;
-
-const skillCategories = {
-    Frontend: [
-        "JavaScript",
-        "TypeScript",
-        "ReactJS",
-        "Next.js",
-        "Vue.js",
-        "Astro",
-        "HTML5",
-        "CSS3",
-        "jQuery",
-        "Bootstrap",
-        "Tailwind CSS",
-        "Styled Components",
-        "Flutter (Dart)",
-        "React Native",
-        "Android",
-    ],
-    Backend: [
-        "Node.js",
-        "Express.js",
-        ".NET Core / MVC",
-        "C#",
-        "Java",
-        "SpringBoot",
-        "Delphi Pascal",
-        "C++",
-        "Kotlin",
-        "REST APIs",
-        "GraphQL",
-        "Microservices",
-        "OpenAI API",
-    ],
-    Database: [
-        "PostgreSQL",
-        "MongoDB",
-        "MySQL",
-        "SQL Server",
-        "SQLite",
-        "Firebird",
-        "Oracle",
-        "Redis",
-    ],
-    "Tools & DevOps": [
-        "Git",
-        "GitHub",
-        "GitHub Actions",
-        "Jenkins",
-        "TeamCity",
-        "Docker",
-        "Azure",
-        "AWS",
-        "GCP",
-        "Vercel",
-        "CI/CD",
-    ],
-};
-
-const skillTranslationKeys = {
-    Frontend: "about.skills.frontend",
-    Backend: "about.skills.backend",
-    Database: "about.skills.database",
-    "Tools & DevOps": "about.skills.tools",
-};
 ---
 
 <section id="about" class="py-20 bg-white dark:bg-gray-900">
@@ -141,24 +169,6 @@ const skillTranslationKeys = {
                             </>
                         )
                     }
-                </div>
-
-                <!-- Quick Stats -->
-                <div class="flex justify-center pt-6">
-                    <div
-                        class="text-center p-6 bg-gradient-to-br from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 rounded-xl border border-primary-100 dark:border-primary-800"
-                    >
-                        <div
-                            class="text-3xl font-bold text-primary-600 dark:text-primary-400 mb-2"
-                        >
-                            15+
-                        </div>
-                        <div
-                            class="text-sm font-medium text-gray-600 dark:text-gray-400"
-                        >
-                            {t("about.yearsExperience")}
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Languages I Speak -->
@@ -272,19 +282,17 @@ const skillTranslationKeys = {
 
                 <div class="space-y-8">
                     {
-                        Object.entries(skillCategories).map(
-                            ([category, skills]) => (
-                                <div class="space-y-4">
-                                    <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center">
-                                        <span class="w-2 h-2 bg-primary-600 rounded-full mr-3" />
-                                        {t(
-                                            skillTranslationKeys[
-                                                category as keyof typeof skillTranslationKeys
-                                            ] as any,
-                                        )}
-                                    </h4>
+                        skillCategories.map((category) => (
+                            <div class="space-y-4">
+                                <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+                                    <span class="w-2 h-2 bg-primary-600 rounded-full mr-3" />
+                                    {category.name}
+                                </h4>
+
+                                {/* Direct skills under category */}
+                                {category.skills.length > 0 && (
                                     <div class="grid grid-cols-2 gap-3">
-                                        {skills.map((skill) => (
+                                        {category.skills.map((skill) => (
                                             <div class="group">
                                                 <div class="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all duration-200 cursor-default">
                                                     <span class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
@@ -294,38 +302,43 @@ const skillTranslationKeys = {
                                             </div>
                                         ))}
                                     </div>
-                                </div>
-                            ),
-                        )
-                    }
-                </div>
+                                )}
 
-                <!-- Additional Info -->
-                <div
-                    class="mt-8 p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-xl"
-                >
-                    <h4
-                        class="text-lg font-semibold text-gray-900 dark:text-white mb-3"
-                    >
-                        {t("about.currentlyLearning")}
-                    </h4>
-                    <div class="flex flex-wrap gap-2">
-                        <span
-                            class="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-sm rounded-full border border-yellow-200 dark:border-yellow-700"
-                        >
-                            AI/ML Integration
-                        </span>
-                        <span
-                            class="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-sm rounded-full border border-green-200 dark:border-green-700"
-                        >
-                            OpenAI API
-                        </span>
-                        <span
-                            class="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-sm rounded-full border border-blue-200 dark:border-blue-700"
-                        >
-                            Go
-                        </span>
-                    </div>
+                                {/* Subcategories with their skills */}
+                                {category.subcategories.length > 0 && (
+                                    <div class="space-y-4 ml-4">
+                                        {category.subcategories.map(
+                                            (subcategory) => (
+                                                <div class="space-y-3">
+                                                    <h5 class="text-base font-medium text-gray-700 dark:text-gray-300 flex items-center">
+                                                        <span class="text-primary-600 dark:text-primary-400 mr-2">
+                                                            📁
+                                                        </span>
+                                                        {subcategory.name}
+                                                    </h5>
+                                                    <div class="grid grid-cols-2 gap-3 ml-6">
+                                                        {subcategory.skills.map(
+                                                            (skill) => (
+                                                                <div class="group">
+                                                                    <div class="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all duration-200 cursor-default">
+                                                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
+                                                                            {
+                                                                                skill
+                                                                            }
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ),
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        ))
+                    }
                 </div>
             </div>
         </div>

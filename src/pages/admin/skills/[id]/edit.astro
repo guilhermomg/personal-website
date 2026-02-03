@@ -1,0 +1,1179 @@
+---
+export const prerender = false;
+
+import Layout from "../../../../layouts/Layout.astro";
+import { createServerClient } from "../../../../lib/supabase";
+
+const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
+
+const supabase = createServerClient(Astro.cookies);
+const {
+    data: { user },
+    error,
+} = await supabase.auth.getUser();
+
+// Redirect to login if not authenticated
+if (!user || error) {
+    return Astro.redirect("/admin/login");
+}
+
+// Get GitHub username from user metadata
+const userGithubUsername =
+    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+
+if (userGithubUsername !== adminGithubUsername) {
+    // Sign out and redirect
+    await supabase.auth.signOut();
+    return Astro.redirect("/admin/login?error=unauthorized");
+}
+
+// Get skill group ID from URL params
+const { id } = Astro.params;
+if (!id) {
+    return Astro.redirect("/admin/dashboard");
+}
+
+// Fetch skill category
+const { data: skillGroup, error: fetchError } = await supabase
+    .from("skill_categories")
+    .select("id, name, description, sort_order, is_active, parent_category_id")
+    .eq("id", id)
+    .single();
+
+// Redirect if skill category not found
+if (!skillGroup || fetchError) {
+    return Astro.redirect("/admin/dashboard");
+}
+
+// Fetch site author from personal_info table
+const { data: personalInfo } = await supabase
+    .from("personal_info")
+    .select("full_name")
+    .single();
+
+const siteAuthor = personalInfo?.full_name || "Admin";
+
+// Fetch skills in this category
+const { data: skills } = await supabase
+    .from("skills")
+    .select("id, skill_translations(language_code, name)")
+    .eq("skill_category_id", id)
+    .order("sort_order", { ascending: true });
+
+// Fetch site languages for translations
+const { data: siteLanguages } = await supabase
+    .from("site_languages")
+    .select("language_code, language_name, is_default")
+    .eq("is_active", true)
+    .order("is_default", { ascending: false });
+
+// Fetch top-level categories (for parent selection)
+const { data: parentCategories } = await supabase
+    .from("skill_categories")
+    .select("id, name")
+    .is("parent_category_id", null)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+
+// Fetch sub-categories of this category with their skills
+const { data: subCategories } = await supabase
+    .from("skill_categories")
+    .select(
+        "id, name, sort_order, is_active, skills(id, skill_translations(language_code, name))",
+    )
+    .eq("parent_category_id", id)
+    .order("sort_order", { ascending: true });
+
+const skillsJson = JSON.stringify(skills || []);
+const siteLanguagesJson = JSON.stringify(siteLanguages || []);
+const parentCategoriesJson = JSON.stringify(parentCategories || []);
+const subCategoriesJson = JSON.stringify(subCategories || []);
+---
+
+<Layout title={`Edit Skill Category - Admin - ${siteAuthor}`}>
+    <div
+        class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800"
+    >
+        <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="mb-8">
+                <a
+                    href="/admin/dashboard"
+                    class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+                >
+                    ← Back to Dashboard
+                </a>
+                <h1
+                    class="text-3xl font-bold text-gray-900 dark:text-white mt-4"
+                >
+                    Edit Skill Category
+                </h1>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-8">
+                <form id="skill-group-form" class="space-y-8">
+                    <!-- Category Name -->
+                    <div>
+                        <label
+                            for="name"
+                            class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                        >
+                            Category Name{" "}
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="name"
+                            name="name"
+                            value={skillGroup.name}
+                            required
+                            placeholder="e.g., Frontend, Backend, DevOps"
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label
+                            for="description"
+                            class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                        >
+                            Description
+                        </label>
+                        <textarea
+                            id="description"
+                            name="description"
+                            rows="3"
+                            placeholder="Optional description for this skill category"
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                            {skillGroup.description || ""}
+                        </textarea>
+                    </div>
+
+                    <!-- Sort Order -->
+                    <div>
+                        <label
+                            for="sort-order"
+                            class="block text-sm font-semibold text-gray-900 dark:text-white mb-2"
+                        >
+                            Sort Order
+                        </label>
+                        <input
+                            type="number"
+                            id="sort-order"
+                            name="sort_order"
+                            min="0"
+                            value={skillGroup.sort_order || 0}
+                            placeholder="Lower numbers appear first"
+                            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                    </div>
+
+                    <!-- Active Status -->
+                    <div>
+                        <label
+                            for="is-active"
+                            class="flex items-center gap-3 cursor-pointer"
+                        >
+                            <input
+                                type="checkbox"
+                                id="is-active"
+                                name="is_active"
+                                checked={skillGroup.is_active}
+                                class="w-4 h-4 rounded"
+                            />
+                            <span
+                                class="text-sm font-semibold text-gray-900 dark:text-white"
+                            >
+                                Active
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Subcategories Section -->
+                    <div
+                        class="border-t border-gray-200 dark:border-gray-700 pt-8"
+                    >
+                        <h2
+                            class="text-lg font-bold text-gray-900 dark:text-white mb-6"
+                        >
+                            Subcategories
+                        </h2>
+
+                        <!-- Add Subcategory Input -->
+                        <div class="flex gap-2 mb-6">
+                            <input
+                                type="text"
+                                id="new-subcategory-input"
+                                placeholder="Type subcategory name..."
+                                class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <button
+                                type="button"
+                                id="add-subcategory-btn"
+                                class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold rounded-lg transition-colors"
+                            >
+                                Add Subcategory
+                            </button>
+                        </div>
+
+                        <!-- Existing & New Subcategories List -->
+                        <div id="subcategories-list" class="space-y-4">
+                            <!-- Subcategory cards will be rendered here -->
+                        </div>
+                    </div>
+
+                    <!-- Skills Section -->
+                    <div
+                        class="border-t border-gray-200 dark:border-gray-700 pt-8"
+                    >
+                        <h2
+                            class="text-lg font-bold text-gray-900 dark:text-white mb-6"
+                        >
+                            Skills (Parent Level)
+                        </h2>
+
+                        <!-- Existing Skills List -->
+                        <div id="skills-list" class="space-y-3 mb-6">
+                            <!-- Skills will be rendered here -->
+                        </div>
+
+                        <!-- Add Skill Input -->
+                        <div class="flex gap-2">
+                            <input
+                                type="text"
+                                id="new-skill-input"
+                                placeholder="Type skill name... (press Enter or click Add)"
+                                class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                            <button
+                                type="button"
+                                id="add-skill-btn"
+                                class="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
+                            >
+                                Add
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Error Message -->
+                    <div
+                        id="form-error"
+                        class="hidden rounded-lg bg-red-50 dark:bg-red-900/30 px-4 py-3 text-sm text-red-700 dark:text-red-200"
+                    >
+                    </div>
+
+                    <!-- Success Message -->
+                    <div
+                        id="form-success"
+                        class="hidden rounded-lg bg-green-50 dark:bg-green-900/30 px-4 py-3 text-sm text-green-700 dark:text-green-200"
+                    >
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div
+                        class="border-t border-gray-200 dark:border-gray-700 pt-8 flex gap-4"
+                    >
+                        <button
+                            type="submit"
+                            class="flex-1 px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
+                        >
+                            Save Changes
+                        </button>
+                        <button
+                            type="button"
+                            id="delete-btn"
+                            class="px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition-colors"
+                        >
+                            Delete
+                        </button>
+                        <a
+                            href="/admin/dashboard"
+                            class="flex-1 px-6 py-3 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-semibold rounded-lg transition-colors text-center"
+                        >
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script
+        type="module"
+        define:vars={{
+            id,
+            skillsJson,
+            siteLanguagesJson,
+            parentCategoriesJson,
+            subCategoriesJson,
+            supabaseUrl: import.meta.env.PUBLIC_SUPABASE_URL,
+            supabaseAnonKey: import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+        }}
+    >
+        import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+        const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const form = document.getElementById("skill-group-form");
+            const deleteBtn = document.getElementById("delete-btn");
+            const newSkillInput = document.getElementById("new-skill-input");
+            const addSkillBtn = document.getElementById("add-skill-btn");
+            const skillsList = document.getElementById("skills-list");
+            const newSubcategoryInput = document.getElementById(
+                "new-subcategory-input",
+            );
+            const addSubcategoryBtn = document.getElementById(
+                "add-subcategory-btn",
+            );
+            const subcategoriesList =
+                document.getElementById("subcategories-list");
+            const formError = document.getElementById("form-error");
+            const formSuccess = document.getElementById("form-success");
+
+            const existingSkills = JSON.parse(skillsJson);
+            const siteLanguages = JSON.parse(siteLanguagesJson);
+            const parentCategories = JSON.parse(parentCategoriesJson);
+            const subCategories = JSON.parse(subCategoriesJson);
+
+            // Track skills: existing (with id) and new (without id)
+            let skillsState = existingSkills.map((skill) => ({
+                id: skill.id,
+                name: skill.skill_translations?.[0]?.name || "Untitled",
+                isNew: false,
+            }));
+
+            let newSkillsToAdd = [];
+
+            // Track subcategories: existing (with id) and new (without id)
+            // Each subcategory has: {id?, name, skills: [{id?, name}], isExpanded, isNew}
+            let subcategoriesState = subCategories.map((subcat) => ({
+                id: subcat.id,
+                name: subcat.name,
+                skills: (subcat.skills || []).map((skill) => ({
+                    id: skill.id,
+                    name: skill.skill_translations?.[0]?.name || "Untitled",
+                })),
+                isExpanded: false,
+                isNew: false,
+            }));
+
+            let newSubcategoriesToAdd = [];
+            let draggedElement = null;
+
+            function renderSkillsList() {
+                skillsList.innerHTML = "";
+
+                // Render existing skills
+                skillsState.forEach((skill) => {
+                    if (skill.id) {
+                        const skillItem = document.createElement("div");
+                        skillItem.className =
+                            "flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded-lg group hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors cursor-move";
+                        skillItem.draggable = true;
+                        skillItem.dataset.skillId = skill.id;
+
+                        skillItem.innerHTML = `
+                            <div class="flex items-center gap-3 flex-1">
+                                <span class="text-gray-400 dark:text-gray-500 text-lg">⋮⋮</span>
+                                <span class="text-gray-900 dark:text-white font-medium">
+                                    ${skill.name}
+                                </span>
+                            </div>
+                            <button type="button" class="text-red-500 hover:text-red-700 text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity delete-skill-btn" data-skill-id="${skill.id}">
+                                Remove
+                            </button>
+                        `;
+                        skillsList.appendChild(skillItem);
+
+                        // Drag and drop
+                        skillItem.addEventListener("dragstart", (e) => {
+                            draggedElement = skillItem;
+                            skillItem.classList.add("opacity-50");
+                            e.dataTransfer.effectAllowed = "move";
+                        });
+
+                        skillItem.addEventListener("dragend", () => {
+                            skillItem.classList.remove("opacity-50");
+                            draggedElement = null;
+                        });
+
+                        skillItem.addEventListener("dragover", (e) => {
+                            e.preventDefault();
+                            if (
+                                draggedElement &&
+                                draggedElement !== skillItem
+                            ) {
+                                e.dataTransfer.dropEffect = "move";
+                                skillItem.classList.add(
+                                    "border-t-2",
+                                    "border-primary-500",
+                                );
+                            }
+                        });
+
+                        skillItem.addEventListener("dragleave", () => {
+                            skillItem.classList.remove(
+                                "border-t-2",
+                                "border-primary-500",
+                            );
+                        });
+
+                        skillItem.addEventListener("drop", async (e) => {
+                            e.preventDefault();
+                            skillItem.classList.remove(
+                                "border-t-2",
+                                "border-primary-500",
+                            );
+
+                            if (!draggedElement || draggedElement === skillItem)
+                                return;
+
+                            try {
+                                const draggedSkillId =
+                                    draggedElement.dataset.skillId;
+                                const targetSkillId = skillItem.dataset.skillId;
+
+                                const draggedIndex = skillsState.findIndex(
+                                    (s) => s.id === draggedSkillId,
+                                );
+                                const targetIndex = skillsState.findIndex(
+                                    (s) => s.id === targetSkillId,
+                                );
+
+                                if (
+                                    draggedIndex !== -1 &&
+                                    targetIndex !== -1 &&
+                                    draggedIndex !== targetIndex
+                                ) {
+                                    const [movedSkill] = skillsState.splice(
+                                        draggedIndex,
+                                        1,
+                                    );
+                                    skillsState.splice(
+                                        targetIndex,
+                                        0,
+                                        movedSkill,
+                                    );
+
+                                    for (
+                                        let i = 0;
+                                        i < skillsState.length;
+                                        i++
+                                    ) {
+                                        if (skillsState[i].id) {
+                                            const { error: updateError } =
+                                                await supabase
+                                                    .from("skills")
+                                                    .update({ sort_order: i })
+                                                    .eq(
+                                                        "id",
+                                                        skillsState[i].id,
+                                                    );
+
+                                            if (updateError) {
+                                                throw new Error(
+                                                    "Failed to update skill order",
+                                                );
+                                            }
+                                        }
+                                    }
+                                    renderSkillsList();
+                                }
+                            } catch (error) {
+                                formError.textContent =
+                                    "Failed to reorder skills";
+                                formError.classList.remove("hidden");
+                            }
+                        });
+
+                        skillItem
+                            .querySelector(".delete-skill-btn")
+                            .addEventListener("click", async (e) => {
+                                e.preventDefault();
+                                if (
+                                    !confirm(
+                                        "Are you sure you want to delete this skill?",
+                                    )
+                                )
+                                    return;
+
+                                try {
+                                    const { error: deleteError } =
+                                        await supabase
+                                            .from("skills")
+                                            .delete()
+                                            .eq("id", skill.id);
+
+                                    if (deleteError) {
+                                        throw new Error(
+                                            "Failed to delete skill",
+                                        );
+                                    }
+
+                                    skillsState = skillsState.filter(
+                                        (s) => s.id !== skill.id,
+                                    );
+                                    renderSkillsList();
+                                } catch (error) {
+                                    formError.textContent =
+                                        error instanceof Error
+                                            ? error.message
+                                            : "Failed to delete skill";
+                                    formError.classList.remove("hidden");
+                                }
+                            });
+                    }
+                });
+
+                // Render new skills to add
+                newSkillsToAdd.forEach((skill, index) => {
+                    const skillItem = document.createElement("div");
+                    skillItem.className =
+                        "flex items-center justify-between bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg group hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors border border-blue-200 dark:border-blue-700";
+                    skillItem.innerHTML = `
+                        <span class="flex-1 text-gray-900 dark:text-white font-medium">
+                            + ${skill}
+                        </span>
+                        <button type="button" class="text-red-500 hover:text-red-700 text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity remove-new-skill-btn" data-index="${index}">
+                            Undo
+                        </button>
+                    `;
+                    skillsList.appendChild(skillItem);
+
+                    skillItem
+                        .querySelector(".remove-new-skill-btn")
+                        .addEventListener("click", (e) => {
+                            e.preventDefault();
+                            newSkillsToAdd.splice(index, 1);
+                            renderSkillsList();
+                        });
+                });
+            }
+
+            function addSkill() {
+                const skillName = newSkillInput.value.trim();
+                if (!skillName) return;
+
+                if (
+                    newSkillsToAdd.includes(skillName) ||
+                    skillsState.some((s) => s.name === skillName)
+                ) {
+                    formError.textContent = "This skill is already added";
+                    formError.classList.remove("hidden");
+                    setTimeout(() => formError.classList.add("hidden"), 3000);
+                    return;
+                }
+
+                newSkillsToAdd.push(skillName);
+                newSkillInput.value = "";
+                newSkillInput.focus();
+                renderSkillsList();
+                formError.classList.add("hidden");
+            }
+
+            addSkillBtn.addEventListener("click", (e) => {
+                e.preventDefault();
+                addSkill();
+            });
+
+            newSkillInput.addEventListener("keypress", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    addSkill();
+                }
+            });
+
+            // Subcategory management functions
+            function renderSubcategoriesList() {
+                subcategoriesList.innerHTML = "";
+
+                // Combine existing and new subcategories for rendering
+                const allSubcategories = [
+                    ...subcategoriesState,
+                    ...newSubcategoriesToAdd.map((name) => ({
+                        name,
+                        skills: [],
+                        isExpanded: true,
+                        isNew: true,
+                    })),
+                ];
+
+                allSubcategories.forEach((subcategory, subcatIndex) => {
+                    const isExisting = !subcategory.isNew;
+                    const card = document.createElement("div");
+                    card.className = isExisting
+                        ? "border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 overflow-hidden"
+                        : "border border-indigo-200 dark:border-indigo-700 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 overflow-hidden";
+
+                    // Card header
+                    const header = document.createElement("div");
+                    header.className = isExisting
+                        ? "flex items-center justify-between p-4 bg-gray-100 dark:bg-gray-700 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        : "flex items-center justify-between p-4 bg-indigo-100 dark:bg-indigo-900/30 cursor-pointer hover:bg-indigo-200 dark:hover:bg-indigo-900/40 transition-colors";
+                    header.innerHTML = `
+                        <div class="flex items-center gap-3 flex-1">
+                            <span class="text-lg">${isExisting ? "📁" : "➕ 📁"}</span>
+                            <span class="font-semibold text-gray-900 dark:text-white">${subcategory.name}</span>
+                            <span class="text-sm text-gray-600 dark:text-gray-400">(${subcategory.skills.length} skills)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" class="toggle-btn text-${isExisting ? "gray" : "indigo"}-600 dark:text-${isExisting ? "gray" : "indigo"}-400 hover:text-${isExisting ? "gray" : "indigo"}-800 dark:hover:text-${isExisting ? "gray" : "indigo"}-200 text-xl">
+                                ${subcategory.isExpanded ? "▼" : "▶"}
+                            </button>
+                            <button type="button" class="delete-subcat-btn text-red-500 hover:text-red-700 px-3 py-1 text-sm font-semibold rounded">
+                                ${isExisting ? "Delete" : "Undo"}
+                            </button>
+                        </div>
+                    `;
+
+                    card.appendChild(header);
+
+                    // Expandable content
+                    if (subcategory.isExpanded) {
+                        const content = document.createElement("div");
+                        content.className = `p-4 space-y-4 border-t border-${isExisting ? "gray" : "indigo"}-200 dark:border-${isExisting ? "gray" : "indigo"}-700`;
+
+                        // Skills list
+                        const skillsContainer = document.createElement("div");
+                        skillsContainer.className = "space-y-2";
+
+                        if (subcategory.skills.length > 0) {
+                            const skillsLabel = document.createElement("p");
+                            skillsLabel.className =
+                                "text-sm font-medium text-gray-700 dark:text-gray-300 mb-2";
+                            skillsLabel.textContent = `Skills in ${subcategory.name}:`;
+                            skillsContainer.appendChild(skillsLabel);
+
+                            subcategory.skills.forEach((skill, skillIndex) => {
+                                const skillItem = document.createElement("div");
+                                skillItem.className =
+                                    "flex items-center justify-between bg-white dark:bg-gray-900 p-2 rounded group hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors";
+                                const skillName =
+                                    typeof skill === "string"
+                                        ? skill
+                                        : skill.name;
+                                const hasId =
+                                    typeof skill === "object" && skill.id;
+                                skillItem.innerHTML = `
+                                    <span class="text-gray-900 dark:text-white text-sm">${hasId ? "•" : "+ "} ${skillName}</span>
+                                    <button type="button" class="remove-skill-btn text-red-500 hover:text-red-700 text-xs opacity-0 group-hover:opacity-100 transition-opacity" data-subcat-index="${subcatIndex}" data-skill-index="${skillIndex}">
+                                        ${hasId ? "Delete" : "Remove"}
+                                    </button>
+                                `;
+                                skillsContainer.appendChild(skillItem);
+
+                                skillItem
+                                    .querySelector(".remove-skill-btn")
+                                    .addEventListener("click", async (e) => {
+                                        e.preventDefault();
+                                        const targetSubcat = isExisting
+                                            ? subcategoriesState[subcatIndex]
+                                            : newSubcategoriesToAdd[
+                                                  subcatIndex -
+                                                      subcategoriesState.length
+                                              ];
+
+                                        if (hasId && isExisting) {
+                                            // Delete existing skill from database
+                                            if (
+                                                !confirm(
+                                                    `Delete "${skillName}"?`,
+                                                )
+                                            )
+                                                return;
+                                            try {
+                                                const { error: deleteError } =
+                                                    await supabase
+                                                        .from("skills")
+                                                        .delete()
+                                                        .eq("id", skill.id);
+                                                if (deleteError)
+                                                    throw new Error(
+                                                        "Failed to delete skill",
+                                                    );
+                                                subcategoriesState[
+                                                    subcatIndex
+                                                ].skills.splice(skillIndex, 1);
+                                            } catch (error) {
+                                                formError.textContent =
+                                                    error instanceof Error
+                                                        ? error.message
+                                                        : "Failed to delete skill";
+                                                formError.classList.remove(
+                                                    "hidden",
+                                                );
+                                            }
+                                        } else {
+                                            // Remove from array
+                                            if (isExisting) {
+                                                subcategoriesState[
+                                                    subcatIndex
+                                                ].skills.splice(skillIndex, 1);
+                                            } else {
+                                                newSubcategoriesToAdd[
+                                                    subcatIndex -
+                                                        subcategoriesState.length
+                                                ].skills.splice(skillIndex, 1);
+                                            }
+                                        }
+                                        renderSubcategoriesList();
+                                    });
+                            });
+                        }
+
+                        content.appendChild(skillsContainer);
+
+                        // Add skill input
+                        const addSkillDiv = document.createElement("div");
+                        addSkillDiv.className = "flex gap-2 pt-2";
+                        addSkillDiv.innerHTML = `
+                            <input
+                                type="text"
+                                class="subcat-skill-input flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-${isExisting ? "gray" : "indigo"}-500"
+                                placeholder="Add skill to ${subcategory.name}..."
+                                data-subcat-index="${subcatIndex}"
+                            />
+                            <button
+                                type="button"
+                                class="add-subcat-skill-btn px-3 py-2 bg-${isExisting ? "gray" : "indigo"}-500 hover:bg-${isExisting ? "gray" : "indigo"}-600 text-white text-sm font-semibold rounded transition-colors"
+                                data-subcat-index="${subcatIndex}"
+                            >
+                                Add Skill
+                            </button>
+                        `;
+
+                        content.appendChild(addSkillDiv);
+                        card.appendChild(content);
+
+                        // Add skill button event
+                        const addBtn = addSkillDiv.querySelector(
+                            ".add-subcat-skill-btn",
+                        );
+                        const input = addSkillDiv.querySelector(
+                            ".subcat-skill-input",
+                        );
+
+                        const addSkillToSubcat = () => {
+                            const skillName = input.value.trim();
+                            if (!skillName) return;
+
+                            const skillExists = subcategory.skills.some(
+                                (s) =>
+                                    (typeof s === "string" ? s : s.name) ===
+                                    skillName,
+                            );
+
+                            if (skillExists) {
+                                formError.textContent =
+                                    "This skill is already added to this subcategory";
+                                formError.classList.remove("hidden");
+                                setTimeout(
+                                    () => formError.classList.add("hidden"),
+                                    3000,
+                                );
+                                return;
+                            }
+
+                            if (isExisting) {
+                                subcategoriesState[subcatIndex].skills.push({
+                                    name: skillName,
+                                });
+                            } else {
+                                newSubcategoriesToAdd[
+                                    subcatIndex - subcategoriesState.length
+                                ].skills.push(skillName);
+                            }
+                            input.value = "";
+                            input.focus();
+                            renderSubcategoriesList();
+                            formError.classList.add("hidden");
+                        };
+
+                        addBtn.addEventListener("click", (e) => {
+                            e.preventDefault();
+                            addSkillToSubcat();
+                        });
+
+                        input.addEventListener("keypress", (e) => {
+                            if (e.key === "Enter") {
+                                e.preventDefault();
+                                addSkillToSubcat();
+                            }
+                        });
+                    }
+
+                    // Toggle expand/collapse
+                    header
+                        .querySelector(".toggle-btn")
+                        .addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            if (isExisting) {
+                                subcategoriesState[subcatIndex].isExpanded =
+                                    !subcategoriesState[subcatIndex].isExpanded;
+                            } else {
+                                newSubcategoriesToAdd[
+                                    subcatIndex - subcategoriesState.length
+                                ].isExpanded =
+                                    !newSubcategoriesToAdd[
+                                        subcatIndex - subcategoriesState.length
+                                    ].isExpanded;
+                            }
+                            renderSubcategoriesList();
+                        });
+
+                    // Delete/Undo subcategory
+                    header
+                        .querySelector(".delete-subcat-btn")
+                        .addEventListener("click", async (e) => {
+                            e.stopPropagation();
+                            if (isExisting) {
+                                if (
+                                    !confirm(
+                                        `Delete "${subcategory.name}" and all its skills?`,
+                                    )
+                                )
+                                    return;
+                                try {
+                                    const { error: deleteError } =
+                                        await supabase
+                                            .from("skill_categories")
+                                            .delete()
+                                            .eq("id", subcategory.id);
+                                    if (deleteError)
+                                        throw new Error(
+                                            "Failed to delete subcategory",
+                                        );
+                                    subcategoriesState.splice(subcatIndex, 1);
+                                    renderSubcategoriesList();
+                                } catch (error) {
+                                    formError.textContent =
+                                        error instanceof Error
+                                            ? error.message
+                                            : "Failed to delete subcategory";
+                                    formError.classList.remove("hidden");
+                                }
+                            } else {
+                                newSubcategoriesToAdd.splice(
+                                    subcatIndex - subcategoriesState.length,
+                                    1,
+                                );
+                                renderSubcategoriesList();
+                            }
+                        });
+
+                    subcategoriesList.appendChild(card);
+                });
+            }
+
+            function addSubcategory() {
+                const subcategoryName = newSubcategoryInput.value.trim();
+                if (!subcategoryName) return;
+
+                const allNames = [
+                    ...subcategoriesState.map((s) => s.name),
+                    ...newSubcategoriesToAdd.map((s) => s.name),
+                ];
+
+                if (allNames.includes(subcategoryName)) {
+                    formError.textContent = "This subcategory is already added";
+                    formError.classList.remove("hidden");
+                    setTimeout(() => formError.classList.add("hidden"), 3000);
+                    return;
+                }
+
+                newSubcategoriesToAdd.push({
+                    name: subcategoryName,
+                    skills: [],
+                    isExpanded: true,
+                });
+                newSubcategoryInput.value = "";
+                newSubcategoryInput.focus();
+                renderSubcategoriesList();
+                formError.classList.add("hidden");
+            }
+
+            addSubcategoryBtn.addEventListener("click", (e) => {
+                e.preventDefault();
+                addSubcategory();
+            });
+
+            newSubcategoryInput.addEventListener("keypress", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    addSubcategory();
+                }
+            });
+
+            renderSkillsList();
+            renderSubcategoriesList();
+
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+
+                const name = form.querySelector('input[name="name"]').value;
+                const description = form.querySelector(
+                    'textarea[name="description"]',
+                ).value;
+                const sortOrder =
+                    parseInt(
+                        form.querySelector('input[name="sort_order"]').value,
+                    ) || 0;
+                const isActive = form.querySelector(
+                    'input[name="is_active"]',
+                ).checked;
+
+                if (!name) {
+                    formError.textContent = "Please enter a category name";
+                    formError.classList.remove("hidden");
+                    return;
+                }
+
+                try {
+                    formError.classList.add("hidden");
+                    formSuccess.classList.add("hidden");
+
+                    const siteLanguages = JSON.parse(siteLanguagesJson);
+
+                    // Update skill category directly with Supabase
+                    const { error: updateError } = await supabase
+                        .from("skill_categories")
+                        .update({
+                            name,
+                            description: description || null,
+                            sort_order: sortOrder,
+                            is_active: isActive,
+                        })
+                        .eq("id", id);
+
+                    if (updateError) {
+                        throw new Error("Failed to update category");
+                    }
+
+                    // Create new subcategories with their skills
+                    let totalNewSubcategories = 0;
+                    let totalNewSubcategorySkills = 0;
+
+                    for (const subcategory of newSubcategoriesToAdd) {
+                        const { data: subcat, error: subcategoryError } =
+                            await supabase
+                                .from("skill_categories")
+                                .insert({
+                                    name: subcategory.name,
+                                    parent_category_id: id,
+                                    is_active: true,
+                                })
+                                .select()
+                                .single();
+
+                        if (subcategoryError) {
+                            throw new Error(
+                                `Failed to create subcategory "${subcategory.name}"`,
+                            );
+                        }
+
+                        totalNewSubcategories++;
+                        const subcatId = subcat.id;
+
+                        // Create skills for this new subcategory
+                        for (const skillName of subcategory.skills) {
+                            const { data: skill, error: skillError } =
+                                await supabase
+                                    .from("skills")
+                                    .insert({
+                                        skill_category_id: subcatId,
+                                        is_active: true,
+                                    })
+                                    .select()
+                                    .single();
+
+                            if (skillError) {
+                                throw new Error(
+                                    `Failed to create skill "${skillName}"`,
+                                );
+                            }
+
+                            const skillId = skill.id;
+                            const translations = siteLanguages.map((lang) => ({
+                                skill_id: skillId,
+                                language_code: lang.language_code,
+                                name: skillName,
+                                description: "",
+                            }));
+
+                            const { error: translationError } = await supabase
+                                .from("skill_translations")
+                                .insert(translations);
+
+                            if (translationError) {
+                                throw new Error(
+                                    "Failed to create translations",
+                                );
+                            }
+
+                            totalNewSubcategorySkills++;
+                        }
+                    }
+
+                    // Create new skills for existing subcategories
+                    let totalExistingSubcategorySkills = 0;
+                    for (const subcat of subcategoriesState) {
+                        const newSkillsForSubcat = subcat.skills.filter(
+                            (s) => !s.id,
+                        );
+                        for (const skillObj of newSkillsForSubcat) {
+                            const { data: skill, error: skillError } =
+                                await supabase
+                                    .from("skills")
+                                    .insert({
+                                        skill_category_id: subcat.id,
+                                        is_active: true,
+                                    })
+                                    .select()
+                                    .single();
+
+                            if (skillError) {
+                                throw new Error(
+                                    `Failed to create skill "${skillObj.name}"`,
+                                );
+                            }
+
+                            const skillId = skill.id;
+                            const translations = siteLanguages.map((lang) => ({
+                                skill_id: skillId,
+                                language_code: lang.language_code,
+                                name: skillObj.name,
+                                description: "",
+                            }));
+
+                            const { error: translationError } = await supabase
+                                .from("skill_translations")
+                                .insert(translations);
+
+                            if (translationError) {
+                                throw new Error(
+                                    "Failed to create translations",
+                                );
+                            }
+
+                            totalExistingSubcategorySkills++;
+                        }
+                    }
+
+                    // Create new parent-level skills
+                    for (const skillName of newSkillsToAdd) {
+                        const { data: skill, error: skillError } =
+                            await supabase
+                                .from("skills")
+                                .insert({
+                                    skill_category_id: id,
+                                    is_active: true,
+                                })
+                                .select()
+                                .single();
+
+                        if (skillError) {
+                            throw new Error("Failed to create skill");
+                        }
+
+                        const skillId = skill.id;
+
+                        // Create translations for each language
+                        const translations = siteLanguages.map((lang) => ({
+                            skill_id: skillId,
+                            language_code: lang.language_code,
+                            name: skillName,
+                            description: "",
+                        }));
+
+                        const { error: translationError } = await supabase
+                            .from("skill_translations")
+                            .insert(translations);
+
+                        if (translationError) {
+                            throw new Error("Failed to create translations");
+                        }
+                    }
+
+                    // Build success message
+                    let messageParts = ["✓ Category updated"];
+                    if (totalNewSubcategories > 0) {
+                        messageParts.push(
+                            `${totalNewSubcategories} subcategory(ies) created`,
+                        );
+                    }
+                    if (totalNewSubcategorySkills > 0) {
+                        messageParts.push(
+                            `${totalNewSubcategorySkills} skill(s) in new subcategories`,
+                        );
+                    }
+                    if (totalExistingSubcategorySkills > 0) {
+                        messageParts.push(
+                            `${totalExistingSubcategorySkills} skill(s) in existing subcategories`,
+                        );
+                    }
+                    if (newSkillsToAdd.length > 0) {
+                        messageParts.push(
+                            `${newSkillsToAdd.length} parent-level skill(s)`,
+                        );
+                    }
+
+                    const message =
+                        messageParts.length > 1
+                            ? messageParts[0] +
+                              " and " +
+                              messageParts.slice(1).join(", ") +
+                              "!"
+                            : messageParts[0] + " successfully!";
+
+                    formSuccess.textContent = message;
+                    formSuccess.classList.remove("hidden");
+
+                    setTimeout(() => {
+                        window.location.href =
+                            "/admin/dashboard?updated=skill-category";
+                    }, 1500);
+                } catch (error) {
+                    formError.textContent =
+                        error instanceof Error
+                            ? error.message
+                            : "An error occurred";
+                    formError.classList.remove("hidden");
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+            });
+
+            deleteBtn.addEventListener("click", async () => {
+                if (
+                    !confirm(
+                        "Are you sure you want to delete this skill category? All associated skills will also be deleted. This action cannot be undone.",
+                    )
+                ) {
+                    return;
+                }
+
+                try {
+                    const { error: deleteError } = await supabase
+                        .from("skill_categories")
+                        .delete()
+                        .eq("id", id);
+
+                    if (deleteError) {
+                        throw new Error("Failed to delete skill category");
+                    }
+
+                    window.location.href =
+                        "/admin/dashboard?deleted=skill-category";
+                } catch (error) {
+                    formError.textContent =
+                        error instanceof Error
+                            ? error.message
+                            : "Failed to delete skill category";
+                    formError.classList.remove("hidden");
+                }
+            });
+
+            newSkillInput.focus();
+        });
+    </script>
+</Layout>
