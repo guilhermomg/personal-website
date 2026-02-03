@@ -18,17 +18,29 @@ export function createServerClient(cookies: AstroCookies) {
           return cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          cookies.set(name, value, {
-            ...options,
-            path: '/',
-            sameSite: 'lax',
-          });
+          try {
+            cookies.set(name, value, {
+              ...options,
+              path: '/',
+              sameSite: 'lax',
+            });
+          } catch (e) {
+            // Cookie setting failed, likely because response was already sent
+            // This is safe to ignore for non-critical cookies
+            console.debug('Could not set cookie:', name);
+          }
         },
         remove(name: string, options: CookieOptions) {
-          cookies.delete(name, {
-            ...options,
-            path: '/',
-          });
+          try {
+            cookies.delete(name, {
+              ...options,
+              path: '/',
+            });
+          } catch (e) {
+            // Cookie removal failed, likely because response was already sent
+            // This is safe to ignore for non-critical cookies
+            console.debug('Could not remove cookie:', name);
+          }
         },
       },
     }
