@@ -404,7 +404,7 @@ const siteAuthor = personalInfo?.full_name || "Admin";
 
                                             <!-- Submit button -->
                                             <div class="flex justify-end">
-                                                <SaveButton class="save-translation-btn" client:load>
+                                                <SaveButton id={`save-translation-btn-${lang}`} client:load>
                                                     Save {siteLanguage.language_name} Translation
                                                 </SaveButton>
                                             </div>
@@ -574,7 +574,7 @@ const siteAuthor = personalInfo?.full_name || "Admin";
             basicForm.addEventListener("submit", async (e) => {
                 e.preventDefault();
                 saveBasicBtn.disabled = true;
-                window.dispatchEvent(new Event("save-btn-loading-start"));
+                window.dispatchEvent(new Event("save-basic-btn-loading-start"));
                 if (cancelBasicBtn) {
                     cancelBasicBtn.classList.add("pointer-events-none", "opacity-50");
                 }
@@ -645,7 +645,7 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                             },
                         }),
                     );
-                    window.dispatchEvent(new Event("save-btn-loading-end"));
+                    window.dispatchEvent(new Event("save-basic-btn-loading-end"));
                     if (cancelBasicBtn) {
                         cancelBasicBtn.classList.remove("pointer-events-none", "opacity-50");
                     }
@@ -662,7 +662,7 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                             },
                         }),
                     );
-                    window.dispatchEvent(new Event("save-btn-loading-end"));
+                    window.dispatchEvent(new Event("save-basic-btn-loading-end"));
                     if (cancelBasicBtn) {
                         cancelBasicBtn.classList.remove("pointer-events-none", "opacity-50");
                     }
@@ -677,15 +677,15 @@ const siteAuthor = personalInfo?.full_name || "Admin";
         translationForms.forEach((form) => {
             form.addEventListener("submit", async (e) => {
                 e.preventDefault();
-                const submitBtn = form.querySelector(
-                    ".save-translation-btn",
-                ) as HTMLButtonElement;
                 const lang = (form as HTMLElement).dataset.lang!;
                 const translationId = (form as HTMLElement).dataset
                     .translationId!;
+                const submitBtn = document.getElementById(
+                    `save-translation-btn-${lang}`,
+                ) as HTMLButtonElement;
 
                 submitBtn.disabled = true;
-                window.dispatchEvent(new Event("save-btn-loading-start"));
+                window.dispatchEvent(new Event(`save-translation-btn-${lang}-loading-start`));
 
                 try {
                     const personalInfoId = (
@@ -761,7 +761,7 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                             },
                         }),
                     );
-                    window.dispatchEvent(new Event("save-btn-loading-end"));
+                    window.dispatchEvent(new Event(`save-translation-btn-${lang}-loading-end`));
                 } finally {
                     submitBtn.disabled = false;
                 }
