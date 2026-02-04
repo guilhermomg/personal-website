@@ -3,6 +3,8 @@ export const prerender = false;
 
 import Layout from "../../../layouts/Layout.astro";
 import { createServerClient } from "../../../lib/supabase";
+import SaveButton from "../../../components/SaveButton";
+import Toast from "../../../components/Toast";
 
 const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
 
@@ -380,23 +382,23 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
                         class="flex justify-between pt-6 border-t border-gray-200 dark:border-gray-700"
                     >
                         <a
+                            id="cancel-btn"
                             href="/admin/dashboard"
                             class="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium transition-colors"
                         >
                             Cancel
                         </a>
-                        <button
-                            type="submit"
-                            class="px-6 py-2 bg-primary-600 dark:bg-primary-700 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 font-medium transition-colors"
-                        >
+                        <SaveButton id="save-btn" client:load>
                             Create Experience
-                        </button>
+                        </SaveButton>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-</Layout>
+
+    <!-- Add Toast component -->
+    <Toast client:load />
 
 <script>
     window.addEventListener("DOMContentLoaded", () => {
@@ -623,7 +625,20 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
 
-            const translations: Record<string, any> = {};
+            // Get buttons
+            const saveBtn = document.getElementById("save-btn");
+            const cancelBtn = document.getElementById("cancel-btn");
+
+            // Trigger loading state for SaveButton
+            window.dispatchEvent(new Event("save-btn-loading-start"));
+            
+            // Disable cancel button during processing
+            if (cancelBtn) {
+                cancelBtn.classList.add("pointer-events-none", "opacity-50");
+            }
+
+            try {
+                const translations: Record<string, any> = {};
 
             // Process each language
             activeLanguages.forEach((language) => {
@@ -669,7 +684,23 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
             });
 
             if (defaultLanguageCode && !translations[defaultLanguageCode]) {
-                alert(`Default language title is required`);
+                // Show error toast
+                window.dispatchEvent(
+                    new CustomEvent("show-toast", {
+                        detail: {
+                            message: "Default language title is required",
+                            type: "error",
+                        },
+                    }),
+                );
+                
+                // Stop loading state
+                window.dispatchEvent(new Event("save-btn-loading-end"));
+                
+                // Re-enable cancel button
+                if (cancelBtn) {
+                    cancelBtn.classList.remove("pointer-events-none", "opacity-50");
+                }
                 return;
             }
 
@@ -713,31 +744,57 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
                 translations,
             };
 
-            try {
-                const response = await fetch("/api/experiences", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(payload),
-                });
+            const response = await fetch("/api/experiences", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+            });
 
-                if (!response.ok) {
-                    const error = (await response.json()) as {
-                        message?: string;
-                    };
-                    alert(
-                        `Error: ${error.message || "Failed to create experience"}`,
-                    );
-                    return;
-                }
-
-                const result = (await response.json()) as { id: string };
-                window.location.href = `/admin/experiences/${result.id}/edit?created=true`;
-            } catch (error) {
-                console.error("Error:", error);
-                alert("Error creating experience");
+            if (!response.ok) {
+                const error = (await response.json()) as {
+                    message?: string;
+                };
+                throw new Error(error.message || "Failed to create experience");
             }
+
+            const result = (await response.json()) as { id: string };
+            
+            // Show success toast
+            window.dispatchEvent(
+                new CustomEvent("show-toast", {
+                    detail: {
+                        message: "Experience created successfully! Redirecting...",
+                        type: "success",
+                    },
+                }),
+            );
+            
+            setTimeout(() => {
+                window.location.href = `/admin/experiences/${result.id}/edit?created=true`;
+            }, 1500);
+        } catch (error) {
+            console.error("Error:", error);
+            
+            // Show error toast
+            window.dispatchEvent(
+                new CustomEvent("show-toast", {
+                    detail: {
+                        message: error instanceof Error ? error.message : "Error creating experience",
+                        type: "error",
+                    },
+                }),
+            );
+            
+            // Stop loading state
+            window.dispatchEvent(new Event("save-btn-loading-end"));
+            
+            // Re-enable cancel button
+            if (cancelBtn) {
+                cancelBtn.classList.remove("pointer-events-none", "opacity-50");
+            }
+        }
         });
     });
 </script>
