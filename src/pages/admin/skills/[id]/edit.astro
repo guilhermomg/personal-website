@@ -3,6 +3,8 @@ export const prerender = false;
 
 import Layout from "../../../../layouts/Layout.astro";
 import { createServerClient } from "../../../../lib/supabase";
+import SaveButton from "../../../../components/SaveButton";
+import Toast from "../../../../components/Toast";
 
 const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
 
@@ -274,12 +276,9 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                     <div
                         class="border-t border-gray-200 dark:border-gray-700 pt-8 flex gap-4"
                     >
-                        <button
-                            type="submit"
-                            class="flex-1 px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
-                        >
+                        <SaveButton id="save-btn" client:load>
                             Save Changes
-                        </button>
+                        </SaveButton>
                         <button
                             type="button"
                             id="delete-btn"
@@ -288,6 +287,7 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                             Delete
                         </button>
                         <a
+                            id="cancel-btn"
                             href="/admin/dashboard"
                             class="flex-1 px-6 py-3 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-semibold rounded-lg transition-colors text-center"
                         >
@@ -330,6 +330,8 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                 document.getElementById("subcategories-list");
             const formError = document.getElementById("form-error");
             const formSuccess = document.getElementById("form-success");
+            const saveBtn = document.getElementById("save-btn");
+            const cancelBtn = document.getElementById("cancel-btn");
 
             const existingSkills = JSON.parse(skillsJson);
             const siteLanguages = JSON.parse(siteLanguagesJson);
@@ -929,6 +931,16 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                     return;
                 }
 
+                if (saveBtn) saveBtn.disabled = true;
+                if (deleteBtn) deleteBtn.disabled = true;
+                window.dispatchEvent(new Event("save-btn-loading-start"));
+                if (cancelBtn) {
+                    cancelBtn.classList.add(
+                        "pointer-events-none",
+                        "opacity-50",
+                    );
+                }
+
                 try {
                     formError.classList.add("hidden");
                     formSuccess.classList.add("hidden");
@@ -1126,19 +1138,41 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                               "!"
                             : messageParts[0] + " successfully!";
 
-                    formSuccess.textContent = message;
-                    formSuccess.classList.remove("hidden");
+                    window.dispatchEvent(
+                        new CustomEvent("show-toast", {
+                            detail: {
+                                message: message,
+                                type: "success",
+                            },
+                        }),
+                    );
 
                     setTimeout(() => {
                         window.location.href =
                             "/admin/dashboard?updated=skill-category";
                     }, 1500);
                 } catch (error) {
-                    formError.textContent =
+                    const errorMsg =
                         error instanceof Error
                             ? error.message
                             : "An error occurred";
-                    formError.classList.remove("hidden");
+                    window.dispatchEvent(
+                        new CustomEvent("show-toast", {
+                            detail: {
+                                message: errorMsg,
+                                type: "error",
+                            },
+                        }),
+                    );
+                    window.dispatchEvent(new Event("save-btn-loading-end"));
+                    if (cancelBtn) {
+                        cancelBtn.classList.remove(
+                            "pointer-events-none",
+                            "opacity-50",
+                        );
+                    }
+                    if (saveBtn) saveBtn.disabled = false;
+                    if (deleteBtn) deleteBtn.disabled = false;
                     window.scrollTo({ top: 0, behavior: "smooth" });
                 }
             });
@@ -1152,6 +1186,15 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                     return;
                 }
 
+                if (saveBtn) saveBtn.disabled = true;
+                if (deleteBtn) deleteBtn.disabled = true;
+                if (cancelBtn) {
+                    cancelBtn.classList.add(
+                        "pointer-events-none",
+                        "opacity-50",
+                    );
+                }
+
                 try {
                     const { error: deleteError } = await supabase
                         .from("skill_categories")
@@ -1162,18 +1205,46 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                         throw new Error("Failed to delete skill category");
                     }
 
-                    window.location.href =
-                        "/admin/dashboard?deleted=skill-category";
+                    window.dispatchEvent(
+                        new CustomEvent("show-toast", {
+                            detail: {
+                                message: "Skill category deleted successfully!",
+                                type: "success",
+                            },
+                        }),
+                    );
+
+                    setTimeout(() => {
+                        window.location.href =
+                            "/admin/dashboard?deleted=skill-category";
+                    }, 1500);
                 } catch (error) {
-                    formError.textContent =
+                    const errorMsg =
                         error instanceof Error
                             ? error.message
                             : "Failed to delete skill category";
-                    formError.classList.remove("hidden");
+                    window.dispatchEvent(
+                        new CustomEvent("show-toast", {
+                            detail: {
+                                message: errorMsg,
+                                type: "error",
+                            },
+                        }),
+                    );
+                    if (saveBtn) saveBtn.disabled = false;
+                    if (deleteBtn) deleteBtn.disabled = false;
+                    if (cancelBtn) {
+                        cancelBtn.classList.remove(
+                            "pointer-events-none",
+                            "opacity-50",
+                        );
+                    }
                 }
             });
 
             newSkillInput.focus();
         });
     </script>
+
+    <Toast client:load />
 </Layout>

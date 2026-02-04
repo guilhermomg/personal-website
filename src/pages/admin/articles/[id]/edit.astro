@@ -3,6 +3,8 @@ export const prerender = false;
 
 import Layout from "../../../../layouts/Layout.astro";
 import { createServerClient } from "../../../../lib/supabase";
+import SaveButton from "../../../../components/SaveButton";
+import Toast from "../../../../components/Toast";
 
 const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
 
@@ -441,14 +443,11 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                     <div
                         class="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700"
                     >
-                        <button
-                            type="submit"
-                            id="save-btn"
-                            class="px-6 py-2 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
+                        <SaveButton id="save-btn" client:load>
                             Save Changes
-                        </button>
+                        </SaveButton>
                         <a
+                            id="cancel-btn"
                             href="/admin/dashboard"
                             class="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                         >
@@ -462,25 +461,13 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                             Delete Article
                         </button>
                     </div>
-
-                    <!-- Error message -->
-                    <div
-                        id="error-message"
-                        class="hidden rounded-lg bg-red-50 dark:bg-red-900/30 p-4 text-sm text-red-700 dark:text-red-200"
-                    >
-                    </div>
-
-                    <!-- Success message -->
-                    <div
-                        id="success-message"
-                        class="hidden rounded-lg bg-green-50 dark:bg-green-900/30 p-4 text-sm text-green-700 dark:text-green-200"
-                    >
-                        Article updated successfully! Redirecting...
-                    </div>
                 </form>
             </div>
         </div>
     </div>
+
+    <!-- Add Toast component -->
+    <Toast client:load />
 
     <script>
         import { supabase } from "../../../../lib/supabase";
@@ -498,12 +485,9 @@ const siteAuthor = personalInfo?.full_name || "Admin";
         const deleteBtn = document.getElementById(
             "delete-btn",
         ) as HTMLButtonElement;
-        const errorMessage = document.getElementById(
-            "error-message",
-        ) as HTMLDivElement;
-        const successMessage = document.getElementById(
-            "success-message",
-        ) as HTMLDivElement;
+        const cancelBtn = document.getElementById(
+            "cancel-btn",
+        ) as HTMLAnchorElement;
         const togglePreviewBtn = document.getElementById(
             "toggle-preview",
         ) as HTMLButtonElement;
@@ -673,9 +657,17 @@ const siteAuthor = personalInfo?.full_name || "Admin";
 
                 if (!saveBtn || !form) return;
 
-                saveBtn.disabled = true;
-                errorMessage!.classList.add("hidden");
-                successMessage!.classList.add("hidden");
+                // Trigger loading state for SaveButton
+                window.dispatchEvent(new Event("save-btn-loading-start"));
+                
+                // Disable cancel and delete buttons during processing
+                if (cancelBtn) {
+                    cancelBtn.classList.add("pointer-events-none", "opacity-50");
+                }
+                if (deleteBtn) {
+                    deleteBtn.disabled = true;
+                    deleteBtn.classList.add("opacity-50");
+                }
 
                 try {
                     const formData = new FormData(form);
@@ -836,9 +828,15 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                         throw error;
                     }
 
-                    if (successMessage) {
-                        successMessage.classList.remove("hidden");
-                    }
+                    // Show success toast
+                    window.dispatchEvent(
+                        new CustomEvent("show-toast", {
+                            detail: {
+                                message: "Article updated successfully! Redirecting...",
+                                type: "success",
+                            },
+                        }),
+                    );
 
                     // Redirect to dashboard after 1.5s
                     setTimeout(() => {
@@ -849,11 +847,28 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                         err instanceof Error
                             ? err.message
                             : "Failed to update article";
-                    if (errorMessage) {
-                        errorMessage.textContent = message;
-                        errorMessage.classList.remove("hidden");
+                    
+                    // Show error toast
+                    window.dispatchEvent(
+                        new CustomEvent("show-toast", {
+                            detail: {
+                                message: message,
+                                type: "error",
+                            },
+                        }),
+                    );
+                    
+                    // Stop loading state
+                    window.dispatchEvent(new Event("save-btn-loading-end"));
+                    
+                    // Re-enable cancel and delete buttons
+                    if (cancelBtn) {
+                        cancelBtn.classList.remove("pointer-events-none", "opacity-50");
                     }
-                    saveBtn.disabled = false;
+                    if (deleteBtn) {
+                        deleteBtn.disabled = false;
+                        deleteBtn.classList.remove("opacity-50");
+                    }
                 }
             });
         }
@@ -870,7 +885,6 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                 }
 
                 deleteBtn.disabled = true;
-                errorMessage!.classList.add("hidden");
 
                 try {
                     const { error } = await supabase
@@ -882,17 +896,35 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                         throw error;
                     }
 
-                    // Redirect to dashboard
-                    window.location.href = "/admin/dashboard";
+                    // Show success toast
+                    window.dispatchEvent(
+                        new CustomEvent("show-toast", {
+                            detail: {
+                                message: "Article deleted successfully! Redirecting...",
+                                type: "success",
+                            },
+                        }),
+                    );
+
+                    setTimeout(() => {
+                        window.location.href = "/admin/dashboard";
+                    }, 1500);
                 } catch (err) {
                     const message =
                         err instanceof Error
                             ? err.message
                             : "Failed to delete article";
-                    if (errorMessage) {
-                        errorMessage.textContent = message;
-                        errorMessage.classList.remove("hidden");
-                    }
+                    
+                    // Show error toast
+                    window.dispatchEvent(
+                        new CustomEvent("show-toast", {
+                            detail: {
+                                message: message,
+                                type: "error",
+                            },
+                        }),
+                    );
+                    
                     deleteBtn.disabled = false;
                 }
             });

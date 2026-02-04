@@ -3,6 +3,8 @@ export const prerender = false;
 
 import Layout from "../../../../layouts/Layout.astro";
 import { createServerClient } from "../../../../lib/supabase";
+import SaveButton from "../../../../components/SaveButton";
+import Toast from "../../../../components/Toast";
 
 const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
 
@@ -279,39 +281,23 @@ const siteAuthor = personalInfo?.full_name || "Admin";
 
                     <!-- Actions -->
                     <div class="flex gap-3 pt-4">
-                        <button
-                            type="submit"
-                            id="save-btn"
-                            class="px-6 py-2 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
+                        <SaveButton id="save-btn" client:load>
                             Update Project
-                        </button>
+                        </SaveButton>
                         <a
+                            id="cancel-btn"
                             href="/admin/dashboard"
                             class="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                         >
                             Cancel
                         </a>
                     </div>
-
-                    <!-- Error message -->
-                    <div
-                        id="error-message"
-                        class="hidden rounded-lg bg-red-50 dark:bg-red-900/30 p-4 text-sm text-red-700 dark:text-red-200"
-                    >
-                    </div>
-
-                    <!-- Success message -->
-                    <div
-                        id="success-message"
-                        class="hidden rounded-lg bg-green-50 dark:bg-green-900/30 p-4 text-sm text-green-700 dark:text-green-200"
-                    >
-                        Project updated successfully! Redirecting...
-                    </div>
                 </form>
             </div>
         </div>
     </div>
+
+    <Toast client:load />
 
     <script>
         import { supabase } from "../../../../lib/supabase";
@@ -325,12 +311,9 @@ const siteAuthor = personalInfo?.full_name || "Admin";
         const saveBtn = document.getElementById(
             "save-btn",
         ) as HTMLButtonElement;
-        const errorMessage = document.getElementById(
-            "error-message",
-        ) as HTMLDivElement;
-        const successMessage = document.getElementById(
-            "success-message",
-        ) as HTMLDivElement;
+        const cancelBtn = document.getElementById(
+            "cancel-btn",
+        ) as HTMLAnchorElement;
 
         // Initialize tag preview on load
         if (tagsInput && tagsPreview) {
@@ -365,8 +348,10 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                 if (!saveBtn || !form || !projectId) return;
 
                 saveBtn.disabled = true;
-                errorMessage!.classList.add("hidden");
-                successMessage!.classList.add("hidden");
+                window.dispatchEvent(new Event("save-btn-loading-start"));
+                if (cancelBtn) {
+                    cancelBtn.classList.add("pointer-events-none", "opacity-50");
+                }
 
                 try {
                     const formData = new FormData(form);
@@ -428,9 +413,14 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                         throw error;
                     }
 
-                    if (successMessage) {
-                        successMessage.classList.remove("hidden");
-                    }
+                    window.dispatchEvent(
+                        new CustomEvent("show-toast", {
+                            detail: {
+                                message: "Project updated successfully!",
+                                type: "success",
+                            },
+                        }),
+                    );
 
                     // Redirect to dashboard after 1.5s
                     setTimeout(() => {
@@ -441,9 +431,17 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                         err instanceof Error
                             ? err.message
                             : "Failed to update project";
-                    if (errorMessage) {
-                        errorMessage.textContent = message;
-                        errorMessage.classList.remove("hidden");
+                    window.dispatchEvent(
+                        new CustomEvent("show-toast", {
+                            detail: {
+                                message: message,
+                                type: "error",
+                            },
+                        }),
+                    );
+                    window.dispatchEvent(new Event("save-btn-loading-end"));
+                    if (cancelBtn) {
+                        cancelBtn.classList.remove("pointer-events-none", "opacity-50");
                     }
                     saveBtn.disabled = false;
                 }
