@@ -3,6 +3,8 @@ export const prerender = false;
 
 import Layout from "../../../layouts/Layout.astro";
 import { createServerClient } from "../../../lib/supabase";
+import SaveButton from "../../../components/SaveButton";
+import Toast from "../../../components/Toast";
 
 const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
 
@@ -238,13 +240,11 @@ const parentCategoriesJson = JSON.stringify(parentCategories || []);
                     <div
                         class="border-t border-gray-200 dark:border-gray-700 pt-8 flex gap-4"
                     >
-                        <button
-                            type="submit"
-                            class="flex-1 px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
+                        <SaveButton id="save-btn" client:load>
                             Create Category
-                        </button>
+                        </SaveButton>
                         <a
+                            id="cancel-btn"
                             href="/admin/dashboard"
                             class="flex-1 px-6 py-3 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-semibold rounded-lg transition-colors text-center"
                         >
@@ -289,6 +289,8 @@ const parentCategoriesJson = JSON.stringify(parentCategories || []);
                 document.getElementById("subcategories-list");
             const formError = document.getElementById("form-error");
             const formSuccess = document.getElementById("form-success");
+            const saveBtn = document.getElementById("save-btn");
+            const cancelBtn = document.getElementById("cancel-btn");
 
             // Populate parent categories dropdown
             parentCategories.forEach((cat) => {
@@ -563,6 +565,11 @@ const parentCategoriesJson = JSON.stringify(parentCategories || []);
             form.addEventListener("submit", async (e) => {
                 e.preventDefault();
 
+                if (saveBtn) saveBtn.disabled = true;
+                window.dispatchEvent(new Event("save-btn-loading-start"));
+                if (cancelBtn) {
+                    cancelBtn.classList.add("pointer-events-none", "opacity-50");
+                }
                 formError.classList.add("hidden");
                 formSuccess.classList.add("hidden");
 
@@ -731,18 +738,35 @@ const parentCategoriesJson = JSON.stringify(parentCategories || []);
                     }
                     message += " Redirecting...";
 
-                    formSuccess.textContent = message;
-                    formSuccess.classList.remove("hidden");
+                    window.dispatchEvent(
+                        new CustomEvent("show-toast", {
+                            detail: {
+                                message: message,
+                                type: "success",
+                            },
+                        }),
+                    );
 
                     setTimeout(() => {
                         window.location.href = "/admin/dashboard";
                     }, 1500);
                 } catch (error) {
-                    formError.textContent =
-                        error instanceof Error
-                            ? error.message
-                            : "An error occurred";
-                    formError.classList.remove("hidden");
+                    const errorMsg = error instanceof Error
+                        ? error.message
+                        : "An error occurred";
+                    window.dispatchEvent(
+                        new CustomEvent("show-toast", {
+                            detail: {
+                                message: errorMsg,
+                                type: "error",
+                            },
+                        }),
+                    );
+                    window.dispatchEvent(new Event("save-btn-loading-end"));
+                    if (cancelBtn) {
+                        cancelBtn.classList.remove("pointer-events-none", "opacity-50");
+                    }
+                    if (saveBtn) saveBtn.disabled = false;
                     window.scrollTo({ top: 0, behavior: "smooth" });
                 }
             });
@@ -751,4 +775,6 @@ const parentCategoriesJson = JSON.stringify(parentCategories || []);
             newSkillInput.focus();
         });
     </script>
+
+    <Toast client:load />
 </Layout>
