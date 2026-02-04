@@ -332,7 +332,6 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
             const formSuccess = document.getElementById("form-success");
             const saveBtn = document.getElementById("save-btn");
             const cancelBtn = document.getElementById("cancel-btn");
-            const deleteBtn = document.getElementById("delete-btn");
 
             const existingSkills = JSON.parse(skillsJson);
             const siteLanguages = JSON.parse(siteLanguagesJson);
@@ -936,7 +935,10 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                 if (deleteBtn) deleteBtn.disabled = true;
                 window.dispatchEvent(new Event("save-btn-loading-start"));
                 if (cancelBtn) {
-                    cancelBtn.classList.add("pointer-events-none", "opacity-50");
+                    cancelBtn.classList.add(
+                        "pointer-events-none",
+                        "opacity-50",
+                    );
                 }
 
                 try {
@@ -1150,9 +1152,10 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                             "/admin/dashboard?updated=skill-category";
                     }, 1500);
                 } catch (error) {
-                    const errorMsg = error instanceof Error
-                        ? error.message
-                        : "An error occurred";
+                    const errorMsg =
+                        error instanceof Error
+                            ? error.message
+                            : "An error occurred";
                     window.dispatchEvent(
                         new CustomEvent("show-toast", {
                             detail: {
@@ -1163,7 +1166,10 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                     );
                     window.dispatchEvent(new Event("save-btn-loading-end"));
                     if (cancelBtn) {
-                        cancelBtn.classList.remove("pointer-events-none", "opacity-50");
+                        cancelBtn.classList.remove(
+                            "pointer-events-none",
+                            "opacity-50",
+                        );
                     }
                     if (saveBtn) saveBtn.disabled = false;
                     if (deleteBtn) deleteBtn.disabled = false;
@@ -1183,7 +1189,10 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                 if (saveBtn) saveBtn.disabled = true;
                 if (deleteBtn) deleteBtn.disabled = true;
                 if (cancelBtn) {
-                    cancelBtn.classList.add("pointer-events-none", "opacity-50");
+                    cancelBtn.classList.add(
+                        "pointer-events-none",
+                        "opacity-50",
+                    );
                 }
 
                 try {
@@ -1210,9 +1219,10 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                             "/admin/dashboard?deleted=skill-category";
                     }, 1500);
                 } catch (error) {
-                    const errorMsg = error instanceof Error
-                        ? error.message
-                        : "Failed to delete skill category";
+                    const errorMsg =
+                        error instanceof Error
+                            ? error.message
+                            : "Failed to delete skill category";
                     window.dispatchEvent(
                         new CustomEvent("show-toast", {
                             detail: {
@@ -1224,7 +1234,10 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                     if (saveBtn) saveBtn.disabled = false;
                     if (deleteBtn) deleteBtn.disabled = false;
                     if (cancelBtn) {
-                        cancelBtn.classList.remove("pointer-events-none", "opacity-50");
+                        cancelBtn.classList.remove(
+                            "pointer-events-none",
+                            "opacity-50",
+                        );
                     }
                 }
             });

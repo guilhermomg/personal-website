@@ -100,8 +100,6 @@ if (experience.translations && Array.isArray(experience.translations)) {
 const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
 ---
 
----
-
 <Layout
     title={`Edit Experience - Admin - ${import.meta.env.SITE_AUTHOR || "Admin"}`}
 >
@@ -552,6 +550,9 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
         </div>
     </div>
 
+    <!-- Add Toast component -->
+    <Toast client:load />
+
     <script type="application/json" id="experience-language-data">
         {JSON.stringify({
             activeLanguages: activeLanguages.map((lang) => ({
@@ -564,25 +565,22 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
     </script>
 
     <script>
-        type LanguageConfig = {
-            activeLanguages: { code?: string | null; name?: string | null }[];
-            defaultLanguageCode?: string;
-            defaultLanguageName?: string;
-        };
-
-        window.addEventListener("DOMContentLoaded", () => {
+        function initExperienceEdit() {
             const languageConfigEl = document.getElementById(
                 "experience-language-data",
-            ) as HTMLScriptElement | null;
-            const languageConfig: LanguageConfig = languageConfigEl?.textContent
-                ? JSON.parse(languageConfigEl.textContent)
-                : { activeLanguages: [] };
+            );
+            let languageConfig = { activeLanguages: [] };
+            if (languageConfigEl && languageConfigEl.textContent) {
+                try {
+                    languageConfig = JSON.parse(languageConfigEl.textContent);
+                } catch (error) {
+                    console.error("Failed to parse language config", error);
+                }
+            }
 
-            const activeLanguages = languageConfig.activeLanguages ?? [];
-            const defaultLanguageCode =
-                languageConfig.defaultLanguageCode ?? "";
-            const defaultLanguageName =
-                languageConfig.defaultLanguageName ?? "Default";
+            const activeLanguages = languageConfig.activeLanguages || [];
+            const defaultLanguageCode = languageConfig.defaultLanguageCode || "";
+            const defaultLanguageName = languageConfig.defaultLanguageName || "Default";
 
             // Tab switching
             const tabButtons = document.querySelectorAll(".tab-button");
@@ -590,19 +588,19 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
 
             tabButtons.forEach((button) => {
                 button.addEventListener("click", () => {
-                    const lang = (button as HTMLElement).dataset.lang;
+                    const lang = button.dataset.lang;
                     if (!lang) return;
 
                     // Remove active class from all buttons and contents
                     tabButtons.forEach((btn) => {
-                        (btn as HTMLElement).classList.remove(
+                        btn.classList.remove(
                             "active",
                             "border-b-2",
                             "border-primary-600",
                             "text-primary-600",
                             "dark:text-primary-400",
                         );
-                        (btn as HTMLElement).classList.add(
+                        btn.classList.add(
                             "border-b-2",
                             "border-transparent",
                             "text-gray-600",
@@ -610,18 +608,18 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
                         );
                     });
                     tabContents.forEach((content) => {
-                        (content as HTMLElement).classList.add("hidden");
+                        content.classList.add("hidden");
                     });
 
                     // Add active class to clicked button and show content
-                    (button as HTMLElement).classList.add(
+                    button.classList.add(
                         "active",
                         "border-b-2",
                         "border-primary-600",
                         "text-primary-600",
                         "dark:text-primary-400",
                     );
-                    (button as HTMLElement).classList.remove(
+                    button.classList.remove(
                         "border-b-2",
                         "border-transparent",
                         "text-gray-600",
@@ -639,63 +637,52 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
                 .forEach((button) => {
                     button.addEventListener("click", (e) => {
                         e.preventDefault();
-                        const targetLang = (button as HTMLElement).dataset.lang;
+                        const targetLang = button.dataset.lang;
 
                         if (!targetLang || !defaultLanguageCode) return;
 
-                        const sourceTitle = (
-                            document.querySelector(
-                                `#title_${defaultLanguageCode}`,
-                            ) as HTMLInputElement
+                        const sourceTitle = document.querySelector(
+                            `#title_${defaultLanguageCode}`,
                         )?.value;
-                        const sourceLocation = (
-                            document.querySelector(
-                                `#location_${defaultLanguageCode}`,
-                            ) as HTMLInputElement
+                        const sourceLocation = document.querySelector(
+                            `#location_${defaultLanguageCode}`,
                         )?.value;
-                        const sourceDescription = (
-                            document.querySelector(
-                                `#description_${defaultLanguageCode}`,
-                            ) as HTMLTextAreaElement
+                        const sourceDescription = document.querySelector(
+                            `#description_${defaultLanguageCode}`,
                         )?.value;
-                        const sourceSkills = (
-                            document.querySelector(
-                                `#skills_${defaultLanguageCode}`,
-                            ) as HTMLTextAreaElement
+                        const sourceSkills = document.querySelector(
+                            `#skills_${defaultLanguageCode}`,
                         )?.value;
 
-                        (
-                            document.querySelector(
-                                `#title_${targetLang}`,
-                            ) as HTMLInputElement
-                        ).value = sourceTitle;
-                        (
-                            document.querySelector(
-                                `#location_${targetLang}`,
-                            ) as HTMLInputElement
-                        ).value = sourceLocation;
-                        (
-                            document.querySelector(
-                                `#description_${targetLang}`,
-                            ) as HTMLTextAreaElement
-                        ).value = sourceDescription;
-                        (
-                            document.querySelector(
-                                `#skills_${targetLang}`,
-                            ) as HTMLTextAreaElement
-                        ).value = sourceSkills;
+                        const targetTitle = document.querySelector(
+                            `#title_${targetLang}`,
+                        );
+                        const targetLocation = document.querySelector(
+                            `#location_${targetLang}`,
+                        );
+                        const targetDescription = document.querySelector(
+                            `#description_${targetLang}`,
+                        );
+                        const targetSkills = document.querySelector(
+                            `#skills_${targetLang}`,
+                        );
+
+                        if (targetTitle) targetTitle.value = sourceTitle || "";
+                        if (targetLocation)
+                            targetLocation.value = sourceLocation || "";
+                        if (targetDescription)
+                            targetDescription.value = sourceDescription || "";
+                        if (targetSkills) targetSkills.value = sourceSkills || "";
                     });
                 });
 
             // Translation functionality
-            const translateBtns = document.querySelectorAll(
-                ".translate-btn",
-            ) as NodeListOf<HTMLButtonElement>;
+            const translateBtns = document.querySelectorAll(".translate-btn");
             translateBtns.forEach((btn) => {
                 btn.addEventListener("click", async (e) => {
                     e.preventDefault();
 
-                    const lang = (btn as HTMLElement).dataset.lang;
+                    const lang = btn.dataset.lang;
                     if (!lang) return;
 
                     const originalText = btn.textContent;
@@ -704,25 +691,17 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
 
                     try {
                         // Get default language content
-                        const titleSource = (
-                            document.querySelector(
-                                `#title_${defaultLanguageCode}`,
-                            ) as HTMLInputElement
+                        const titleSource = document.querySelector(
+                            `#title_${defaultLanguageCode}`,
                         )?.value;
-                        const locationSource = (
-                            document.querySelector(
-                                `#location_${defaultLanguageCode}`,
-                            ) as HTMLInputElement
+                        const locationSource = document.querySelector(
+                            `#location_${defaultLanguageCode}`,
                         )?.value;
-                        const descriptionSource = (
-                            document.querySelector(
-                                `#description_${defaultLanguageCode}`,
-                            ) as HTMLTextAreaElement
+                        const descriptionSource = document.querySelector(
+                            `#description_${defaultLanguageCode}`,
                         )?.value;
-                        const skillsSource = (
-                            document.querySelector(
-                                `#skills_${defaultLanguageCode}`,
-                            ) as HTMLTextAreaElement
+                        const skillsSource = document.querySelector(
+                            `#skills_${defaultLanguageCode}`,
                         )?.value;
 
                         if (!titleSource?.trim()) {
@@ -735,11 +714,11 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
                         }
 
                         // Process arrays for API
-                        const descriptionArray = descriptionSource
+                        const descriptionArray = (descriptionSource || "")
                             .split("\n")
                             .map((line) => line.trim())
                             .filter((line) => line.length > 0);
-                        const skillsArray = skillsSource
+                        const skillsArray = (skillsSource || "")
                             .split(",")
                             .map((skill) => skill.trim())
                             .filter((skill) => skill.length > 0);
@@ -768,26 +747,21 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
                             );
                         }
 
-                        const translated = (await response.json()) as {
-                            title: string;
-                            location: string | null;
-                            description: string[];
-                            skills: string[];
-                        };
+                        const translated = await response.json();
 
                         // Fill in the translated fields
                         const titleField = document.querySelector(
                             `#title_${lang}`,
-                        ) as HTMLInputElement;
+                        );
                         const locationField = document.querySelector(
                             `#location_${lang}`,
-                        ) as HTMLInputElement;
+                        );
                         const descriptionField = document.querySelector(
                             `#description_${lang}`,
-                        ) as HTMLTextAreaElement;
+                        );
                         const skillsField = document.querySelector(
                             `#skills_${lang}`,
-                        ) as HTMLTextAreaElement;
+                        );
 
                         if (titleField)
                             titleField.value = translated.title || "";
@@ -818,7 +792,7 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
 
             // Form submission
             const form = document.getElementById("experience-form");
-            if (!form) throw new Error("Experience form not found");
+            if (!form) return;
             const saveBtn = document.getElementById("save-btn");
             const cancelBtn = document.getElementById("cancel-btn");
 
@@ -831,101 +805,105 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
                     cancelBtn.classList.add("pointer-events-none", "opacity-50");
                 }
 
-                const experienceId = (e.target as HTMLFormElement).dataset
-                    .experienceId;
+                const experienceId = form.dataset.experienceId;
 
-                const translations: Record<string, any> = {};
+                const translations = {};
 
-                // Process each language
-                activeLanguages.forEach((language) => {
-                    const lang = language.code;
-                    if (!lang) return;
-                    const title = (
-                        document.querySelector(
-                            `#title_${lang}`,
-                        ) as HTMLInputElement
-                    )?.value;
-                    const location = (
-                        document.querySelector(
+                // Process each language based on existing form fields
+                document
+                    .querySelectorAll("[id^='title_']")
+                    .forEach((titleInput) => {
+                        const id = titleInput.id || "";
+                        const lang = id.replace("title_", "");
+                        if (!lang) return;
+
+                        const title = titleInput.value?.trim();
+                        const location = document.querySelector(
                             `#location_${lang}`,
-                        ) as HTMLInputElement
-                    )?.value;
-                    const description = (
-                        (
-                            document.querySelector(
-                                `#description_${lang}`,
-                            ) as HTMLTextAreaElement
-                        )?.value || ""
-                    )
-                        .split("\n")
-                        .map((line) => line.trim())
-                        .filter((line) => line.length > 0);
-                    const skills = (
-                        (
-                            document.querySelector(
-                                `#skills_${lang}`,
-                            ) as HTMLTextAreaElement
-                        )?.value || ""
-                    )
-                        .split(",")
-                        .map((skill) => skill.trim())
-                        .filter((skill) => skill.length > 0);
+                        )?.value;
+                        const description = (
+                            document.querySelector(`#description_${lang}`)?.value ||
+                            ""
+                        )
+                            .split("\n")
+                            .map((line) => line.trim())
+                            .filter((line) => line.length > 0);
+                        const skills = (
+                            document.querySelector(`#skills_${lang}`)?.value || ""
+                        )
+                            .split(",")
+                            .map((skill) => skill.trim())
+                            .filter((skill) => skill.length > 0);
 
-                    if (title) {
-                        translations[lang] = {
-                            title,
-                            location: location || null,
-                            description,
-                            skills,
-                        };
-                    }
-                });
+                        if (title) {
+                            translations[lang] = {
+                                title,
+                                location: location || null,
+                                description,
+                                skills,
+                            };
+                        }
+                    });
 
                 if (defaultLanguageCode && !translations[defaultLanguageCode]) {
-                    alert(`${defaultLanguageName} title is required`);
+                    window.dispatchEvent(
+                        new CustomEvent("show-toast", {
+                            detail: {
+                                message: `${defaultLanguageName} title is required`,
+                                type: "error",
+                            },
+                        }),
+                    );
+                    window.dispatchEvent(new Event("save-btn-loading-end"));
+                    if (cancelBtn) {
+                        cancelBtn.classList.remove(
+                            "pointer-events-none",
+                            "opacity-50",
+                        );
+                    }
+                    if (saveBtn) saveBtn.disabled = false;
+                    return;
+                }
+
+                if (Object.keys(translations).length === 0) {
+                    window.dispatchEvent(
+                        new CustomEvent("show-toast", {
+                            detail: {
+                                message: "At least one language translation is required",
+                                type: "error",
+                            },
+                        }),
+                    );
+                    window.dispatchEvent(new Event("save-btn-loading-end"));
+                    if (cancelBtn) {
+                        cancelBtn.classList.remove(
+                            "pointer-events-none",
+                            "opacity-50",
+                        );
+                    }
+                    if (saveBtn) saveBtn.disabled = false;
                     return;
                 }
 
                 const payload = {
-                    company: (
-                        document.querySelector("#company") as HTMLInputElement
-                    )?.value,
+                    company: document.querySelector("#company")?.value,
                     start_month: parseInt(
-                        (
-                            document.querySelector(
-                                "#start_month",
-                            ) as HTMLSelectElement
-                        )?.value,
+                        document.querySelector("#start_month")?.value,
                     ),
                     start_year: parseInt(
-                        (
-                            document.querySelector(
-                                "#start_year",
-                            ) as HTMLInputElement
-                        )?.value,
+                        document.querySelector("#start_year")?.value,
                     ),
                     end_month:
                         parseInt(
-                            (
-                                document.querySelector(
-                                    "#end_month",
-                                ) as HTMLSelectElement
-                            )?.value,
+                            document.querySelector("#end_month")?.value,
                         ) || null,
                     end_year:
                         parseInt(
-                            (
-                                document.querySelector(
-                                    "#end_year",
-                                ) as HTMLInputElement
-                            )?.value,
+                            document.querySelector("#end_year")?.value,
                         ) || null,
                     is_published:
-                        (
-                            document.querySelector(
-                                "#is_published",
-                            ) as HTMLSelectElement
-                        )?.value === "published",
+                        document.querySelector("#is_published")?.value ===
+                        "published",
                     translations,
                 };
 
@@ -991,8 +969,12 @@ const hasOpenAIKey = !!import.meta.env.OPENAI_API_KEY;
                     if (saveBtn) (saveBtn as any).disabled = false;
                 }
             });
-        });
-    </script>
+        }
 
-    <Toast client:load />
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", initExperienceEdit);
+        } else {
+            initExperienceEdit();
+        }
+    </script>
 </Layout>
