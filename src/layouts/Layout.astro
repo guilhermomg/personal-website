@@ -15,6 +15,7 @@ export interface Props {
     publishedTime?: string;
     modifiedTime?: string;
     noindex?: boolean;
+    showChatButton?: boolean;
     projects?: Array<{
         "@type": string;
         name: string;
@@ -40,6 +41,7 @@ const {
     publishedTime,
     modifiedTime,
     noindex = false,
+    showChatButton = false,
     projects = [],
 } = Astro.props;
 
@@ -315,7 +317,7 @@ const additionalHreflangs = [
     >
         <slot />
         <Analytics />
-        <ChatButton />
+        {showChatButton && <ChatButton />}
     </body>
 </html>
 
