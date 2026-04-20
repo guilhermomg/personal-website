@@ -1,15 +1,10 @@
 ---
 import ChatWidget from "./ChatWidget";
-import { createServerClient } from "../lib/supabase";
+import sql from "../lib/db";
 
 const chatbotApiUrl = import.meta.env.PUBLIC_CHATBOT_API_URL;
 
-// Fetch siteAuthor from personal_info table
-const supabase = createServerClient(Astro.cookies);
-const { data: personalInfo } = await supabase
-    .from("personal_info")
-    .select("full_name")
-    .single();
+const [personalInfo] = await sql`SELECT full_name FROM personal_info LIMIT 1`;
 
 const siteAuthor = personalInfo?.full_name || "Admin";
 ---

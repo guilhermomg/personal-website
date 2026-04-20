@@ -2,62 +2,24 @@
 export const prerender = false;
 
 import Layout from "../../../../layouts/Layout.astro";
-import { createServerClient } from "../../../../lib/supabase";
+import { requireAdmin } from "../../../../lib/requireAdmin";
 import SaveButton from "../../../../components/SaveButton";
 import Toast from "../../../../components/Toast";
+import sql from "../../../../lib/db";
 
-const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
+const authResult = await requireAdmin(Astro.cookies);
+if (authResult instanceof Response) return authResult;
 
-const supabase = createServerClient(Astro.cookies);
-const {
-    data: { user },
-    error,
-} = await supabase.auth.getUser();
-
-// Redirect to login if not authenticated
-if (!user || error) {
-    return Astro.redirect("/admin/login");
-}
-
-// Get GitHub username from user metadata
-const userGithubUsername =
-    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
-
-if (userGithubUsername !== adminGithubUsername) {
-    // Sign out and redirect
-    await supabase.auth.signOut();
-    return Astro.redirect("/admin/login?error=unauthorized");
-}
-
-// Get project ID from URL params
 const { id } = Astro.params;
-if (!id) {
-    return Astro.redirect("/admin/dashboard");
-}
+if (!id) return Astro.redirect("/admin/dashboard");
 
-// Fetch project
-const { data: project, error: fetchError } = await supabase
-    .from("projects")
-    .select(
-        "id,name,description,tags,link,github_link,order,status,updated_at,created_at",
-    )
-    .eq("id", id)
-    .single();
+const [project] = await sql`
+    SELECT id, name, description, tags, link, github_link, "order", status, updated_at, created_at
+    FROM projects WHERE id = ${id}
+`;
+if (!project) return Astro.redirect("/admin/dashboard");
 
-// Redirect if project not found
-if (!project || fetchError) {
-    return Astro.redirect("/admin/dashboard");
-}
-
-// User is authenticated and authorized
-const userEmail = user.email;
-
-// Fetch siteAuthor from personal_info table
-const { data: personalInfo } = await supabase
-    .from("personal_info")
-    .select("full_name")
-    .single();
-
+const [personalInfo] = await sql`SELECT full_name FROM personal_info LIMIT 1`;
 const siteAuthor = personalInfo?.full_name || "Admin";
 ---
 
@@ -300,7 +262,6 @@ const siteAuthor = personalInfo?.full_name || "Admin";
     <Toast client:load />
 
     <script>
-        import { supabase } from "../../../../lib/supabase";
 
         const form = document.getElementById("project-form") as HTMLFormElement;
         const projectId = form?.dataset.projectId;
@@ -393,25 +354,12 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                         throw new Error("GitHub URL is not valid");
                     }
 
-                    // Update project
-                    const { data, error } = await supabase
-                        .from("projects")
-                        .update({
-                            name,
-                            description,
-                            tags,
-                            link,
-                            github_link,
-                            order,
-                            status,
-                        })
-                        .eq("id", projectId)
-                        .select()
-                        .single();
-
-                    if (error) {
-                        throw error;
-                    }
+                    const res = await fetch(`/api/admin/projects/${projectId}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name, description, tags, link, github_link, order, status }),
+                    });
+                    if (!res.ok) throw new Error((await res.json()).message || "Failed to update project");
 
                     window.dispatchEvent(
                         new CustomEvent("show-toast", {

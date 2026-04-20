@@ -1,15 +1,15 @@
 ---
-import { supabase } from "../lib/supabase";
+import sql from "../lib/db";
 import { getLangFromUrl, useTranslations } from "../i18n/utils";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-const { data: projects } = await supabase
-    .from("projects")
-    .select("id, name, description, tags, link, github_link")
-    .eq("status", "published")
-    .order("order", { ascending: true });
+const projects = await sql`
+  SELECT id, name, description, tags, link, github_link
+  FROM projects WHERE status = 'published'
+  ORDER BY "order" ASC
+`;
 
 const isInternalAnchor = (link: string) => {
     if (link.startsWith("#")) return true;

@@ -2,32 +2,12 @@
 export const prerender = false;
 
 import Layout from "../../layouts/Layout.astro";
-import { createServerClient } from "../../lib/supabase";
+import { requireAdmin } from "../../lib/requireAdmin";
+import sql from "../../lib/db";
 
-const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
-
-const supabase = createServerClient(Astro.cookies);
-const {
-    data: { user },
-    error,
-} = await supabase.auth.getUser();
-
-// Redirect to login if not authenticated
-if (!user || error) {
-    return Astro.redirect("/admin/login");
-}
-
-const userGithubUsername =
-    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
-
-if (userGithubUsername !== adminGithubUsername) {
-    // Sign out and redirect
-    await supabase.auth.signOut();
-    return Astro.redirect("/admin/login?error=unauthorized");
-}
-
-// User is authenticated and authorized
-const userEmail = user.email;
+const authResult = await requireAdmin(Astro.cookies);
+if (authResult instanceof Response) return authResult;
+const adminLogin = authResult;
 type Article = {
     id: string;
     title?: string | null;
@@ -75,74 +55,76 @@ type SiteLanguage = {
     created_at?: string | null;
 };
 
-const { data: articlesData, error: articlesError } = await supabase
-    .from("articles")
-    .select("id,title,slug,status,updated_at,created_at")
-    .order("updated_at", { ascending: false });
+const articlesData = await sql`
+    SELECT id, title, slug, status, updated_at, created_at FROM articles ORDER BY updated_at DESC
+`;
+const articles = articlesData as Article[];
+const articlesError = null;
 
-const articles = (articlesData ?? []) as Article[];
+const projectsData = await sql`
+    SELECT id, name, description, status, "order", updated_at, created_at FROM projects ORDER BY "order" ASC
+`;
+const projects = projectsData as Project[];
+const projectsError = null;
 
-const { data: projectsData, error: projectsError } = await supabase
-    .from("projects")
-    .select("id,name,description,status,order,updated_at,created_at")
-    .order("order", { ascending: true });
+const siteLanguagesData = await sql`
+    SELECT id, language_code, language_name, is_active, is_default, updated_at, created_at
+    FROM site_languages ORDER BY language_code ASC
+`;
+const siteLanguages = siteLanguagesData as SiteLanguage[];
+const siteLanguagesError = null;
 
-const projects = (projectsData ?? []) as Project[];
-
-const { data: siteLanguagesData, error: siteLanguagesError } = await supabase
-    .from("site_languages")
-    .select(
-        "id, language_code, language_name, is_active, is_default, updated_at, created_at",
-    )
-    .order("language_code", { ascending: true });
-
-const siteLanguages = (siteLanguagesData ?? []) as SiteLanguage[];
-
-// Fetch skill categories and skills
-const { data: skillCategoriesData, error: skillCategoriesError } =
-    await supabase
-        .from("skill_categories")
-        .select(
-            "id, name, description, sort_order, is_active, updated_at, created_at, skills(id, skill_translations(language_code, name)), sub_categories:skill_categories!parent_category_id(id, name)",
-        )
-        .is("parent_category_id", null)
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true });
-
-const skillCategories = (skillCategoriesData ?? []) as any[];
+// Fetch skill categories with sub-categories and skill counts
+const skillCatsRaw = await sql`
+    SELECT sc.id, sc.name, sc.description, sc.sort_order, sc.is_active, sc.updated_at, sc.created_at
+    FROM skill_categories sc
+    WHERE sc.parent_category_id IS NULL AND sc.is_active = true
+    ORDER BY sc.sort_order ASC
+`;
+const skillCatSubcats = await sql`
+    SELECT id, name, parent_category_id FROM skill_categories WHERE parent_category_id IS NOT NULL
+`;
+const skillCatSkills = await sql`
+    SELECT s.id, s.skill_category_id, st.language_code, st.name
+    FROM skills s LEFT JOIN skill_translations st ON st.skill_id = s.id
+`;
+const skillCategories = skillCatsRaw.map((cat: any) => ({
+    ...cat,
+    sub_categories: skillCatSubcats.filter((sc: any) => sc.parent_category_id === cat.id),
+    skills: skillCatSkills.filter((s: any) => s.skill_category_id === cat.id),
+}));
+const skillCategoriesError = null;
 
 const defaultLanguageCode =
     siteLanguages.find((lang) => lang.is_default)?.language_code ??
     siteLanguages.find((lang) => lang.is_active)?.language_code ??
     null;
 
-const { data: experiencesData, error: experiencesError } = await supabase
-    .from("experiences")
-    .select(
-        "id,company,start_month,start_year,end_year,is_published,updated_at,created_at,experience_translations(language_code,title)",
-    )
-    .order("start_year", { ascending: false });
-
-const experiences = (experiencesData ?? []).map((experience) => {
-    const translations = experience.experience_translations ?? [];
-    const defaultTranslation = defaultLanguageCode
-        ? translations.find(
-              (translation) =>
-                  translation.language_code === defaultLanguageCode,
-          )
+const expRows = await sql`
+    SELECT e.id, e.company, e.start_month, e.start_year, e.end_year, e.is_published,
+           e.updated_at, e.created_at, et.language_code, et.title AS exp_title
+    FROM experiences e
+    LEFT JOIN experience_translations et ON et.experience_id = e.id
+    ORDER BY e.start_year DESC
+`;
+const expMap = new Map<string, any>();
+for (const row of expRows) {
+    if (!expMap.has(row.id)) {
+        expMap.set(row.id, { ...row, translations: [] });
+    }
+    if (row.language_code) {
+        expMap.get(row.id).translations.push({ language_code: row.language_code, title: row.exp_title });
+    }
+}
+const experiences = Array.from(expMap.values()).map((exp: any) => {
+    const defT = defaultLanguageCode
+        ? exp.translations.find((t: any) => t.language_code === defaultLanguageCode)
         : undefined;
-    const fallbackTranslation = translations[0];
-
-    return {
-        ...experience,
-        title: defaultTranslation?.title ?? fallbackTranslation?.title ?? null,
-    } as Experience;
+    return { ...exp, title: defT?.title ?? exp.translations[0]?.title ?? null } as Experience;
 });
+const experiencesError = null;
 
-const { data: personalInfo } = await supabase
-    .from("personal_info")
-    .select("full_name")
-    .single();
+const [personalInfo] = await sql`SELECT full_name FROM personal_info LIMIT 1`;
 
 const formatDate = (value?: string | null) => {
     if (!value) return "Not set";
@@ -176,7 +158,7 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                             Admin Dashboard
                         </h1>
                         <p class="text-gray-600 dark:text-gray-400 mt-2">
-                            Welcome back, {userEmail}
+                            Welcome back, {adminLogin}
                         </p>
                     </div>
                     <div class="flex gap-3">
@@ -1184,12 +1166,10 @@ const siteAuthor = personalInfo?.full_name || "Admin";
     </div>
 
     <script>
-        import { supabase } from "../../lib/supabase";
-
         const logoutBtn = document.getElementById("logout-btn");
 
         async function logout() {
-            await supabase.auth.signOut();
+            await fetch("/api/auth/logout", { method: "POST" });
             window.location.href = "/admin/login";
         }
 
@@ -1214,23 +1194,11 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                 }
 
                 try {
-                    const { error } = await supabase
-                        .from("articles")
-                        .delete()
-                        .eq("id", articleId);
-
-                    if (error) {
-                        throw error;
-                    }
-
-                    // Reload the page to refresh the list
+                    const res = await fetch(`/api/admin/articles/${articleId}`, { method: "DELETE" });
+                    if (!res.ok) throw new Error((await res.json()).message || "Failed to delete article");
                     window.location.reload();
                 } catch (err) {
-                    const message =
-                        err instanceof Error
-                            ? err.message
-                            : "Failed to delete article";
-                    alert(message);
+                    alert(err instanceof Error ? err.message : "Failed to delete article");
                 }
             });
         });
@@ -1254,23 +1222,11 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                 }
 
                 try {
-                    const { error } = await supabase
-                        .from("projects")
-                        .delete()
-                        .eq("id", projectId);
-
-                    if (error) {
-                        throw error;
-                    }
-
-                    // Reload the page to refresh the list
+                    const res = await fetch(`/api/admin/projects/${projectId}`, { method: "DELETE" });
+                    if (!res.ok) throw new Error((await res.json()).message || "Failed to delete project");
                     window.location.reload();
                 } catch (err) {
-                    const message =
-                        err instanceof Error
-                            ? err.message
-                            : "Failed to delete project";
-                    alert(message);
+                    alert(err instanceof Error ? err.message : "Failed to delete project");
                 }
             });
         });
@@ -1294,23 +1250,11 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                 }
 
                 try {
-                    const { error } = await supabase
-                        .from("experiences")
-                        .delete()
-                        .eq("id", experienceId);
-
-                    if (error) {
-                        throw error;
-                    }
-
-                    // Reload the page to refresh the list
+                    const res = await fetch(`/api/experiences/${experienceId}`, { method: "DELETE" });
+                    if (!res.ok) throw new Error((await res.json()).message || "Failed to delete experience");
                     window.location.reload();
                 } catch (err) {
-                    const message =
-                        err instanceof Error
-                            ? err.message
-                            : "Failed to delete experience";
-                    alert(message);
+                    alert(err instanceof Error ? err.message : "Failed to delete experience");
                 }
             });
         });
@@ -1335,26 +1279,21 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                 }
 
                 try {
-                    const { error } = await supabase
-                        .from("site_languages")
-                        .update({
+                    const btn = document.querySelector(`.edit-language-btn[data-language-id="${languageId}"]`) as HTMLButtonElement;
+                    const res = await fetch(`/api/admin/site-languages/${languageId}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            language_code: btn?.dataset.languageCode || languageCode,
+                            language_name: btn?.dataset.languageName || languageCode,
                             is_active: !isActive,
-                            updated_at: new Date().toISOString(),
-                        })
-                        .eq("id", languageId);
-
-                    if (error) {
-                        throw error;
-                    }
-
-                    // Reload the page to refresh the list
+                            is_default: btn?.dataset.languageDefault === "true",
+                        }),
+                    });
+                    if (!res.ok) throw new Error((await res.json()).message || "Failed to update language");
                     window.location.reload();
                 } catch (err) {
-                    const message =
-                        err instanceof Error
-                            ? err.message
-                            : "Failed to update language";
-                    alert(message);
+                    alert(err instanceof Error ? err.message : "Failed to update language");
                 }
             });
         });
@@ -1529,51 +1468,27 @@ const siteAuthor = personalInfo?.full_name || "Admin";
             }
 
             try {
-                // If setting as default, first unset all other defaults
-                if (isDefault) {
-                    const { error: unsetError } = await supabase
-                        .from("site_languages")
-                        .update({ is_default: false })
-                        .neq("id", id || "");
-
-                    if (unsetError) throw unsetError;
-                }
+                const payload = { language_code: code, language_name: name, is_active: isActive, is_default: isDefault };
 
                 if (id) {
-                    // Update existing
-                    const { error } = await supabase
-                        .from("site_languages")
-                        .update({
-                            language_code: code,
-                            language_name: name,
-                            is_active: isActive,
-                            is_default: isDefault,
-                            updated_at: new Date().toISOString(),
-                        })
-                        .eq("id", id);
-
-                    if (error) throw error;
+                    const res = await fetch(`/api/admin/site-languages/${id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                    });
+                    if (!res.ok) throw new Error((await res.json()).message || "Failed to update language");
                 } else {
-                    // Insert new
-                    const { error } = await supabase
-                        .from("site_languages")
-                        .insert({
-                            language_code: code,
-                            language_name: name,
-                            is_active: isActive,
-                            is_default: isDefault,
-                        });
-
-                    if (error) throw error;
+                    const res = await fetch("/api/admin/site-languages", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                    });
+                    if (!res.ok) throw new Error((await res.json()).message || "Failed to create language");
                 }
 
                 window.location.reload();
             } catch (err) {
-                showLanguageError(
-                    err instanceof Error
-                        ? err.message
-                        : "Failed to save language",
-                );
+                showLanguageError(err instanceof Error ? err.message : "Failed to save language");
             }
         });
 
@@ -1593,33 +1508,21 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                 }
 
                 try {
-                    // First unset all other defaults
-                    const { error: unsetError } = await supabase
-                        .from("site_languages")
-                        .update({ is_default: false })
-                        .neq("id", languageId);
-
-                    if (unsetError) throw unsetError;
-
-                    // Then set this one as default
-                    const { error } = await supabase
-                        .from("site_languages")
-                        .update({
+                    const btn = document.querySelector(`.edit-language-btn[data-language-id="${languageId}"]`) as HTMLButtonElement;
+                    const res = await fetch(`/api/admin/site-languages/${languageId}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            language_code: btn?.dataset.languageCode || languageCode,
+                            language_name: btn?.dataset.languageName || languageCode,
+                            is_active: btn?.dataset.languageActive === "true",
                             is_default: true,
-                            updated_at: new Date().toISOString(),
-                        })
-                        .eq("id", languageId);
-
-                    if (error) throw error;
-
-                    // Reload the page to refresh the list
+                        }),
+                    });
+                    if (!res.ok) throw new Error((await res.json()).message || "Failed to set default language");
                     window.location.reload();
                 } catch (err) {
-                    const message =
-                        err instanceof Error
-                            ? err.message
-                            : "Failed to set default language";
-                    alert(message);
+                    alert(err instanceof Error ? err.message : "Failed to set default language");
                 }
             });
         });

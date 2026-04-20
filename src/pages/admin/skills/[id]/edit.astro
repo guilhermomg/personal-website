@@ -2,94 +2,76 @@
 export const prerender = false;
 
 import Layout from "../../../../layouts/Layout.astro";
-import { createServerClient } from "../../../../lib/supabase";
+import { requireAdmin } from "../../../../lib/requireAdmin";
 import SaveButton from "../../../../components/SaveButton";
 import Toast from "../../../../components/Toast";
+import sql from "../../../../lib/db";
 
-const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
+const authResult = await requireAdmin(Astro.cookies);
+if (authResult instanceof Response) return authResult;
 
-const supabase = createServerClient(Astro.cookies);
-const {
-    data: { user },
-    error,
-} = await supabase.auth.getUser();
-
-// Redirect to login if not authenticated
-if (!user || error) {
-    return Astro.redirect("/admin/login");
-}
-
-// Get GitHub username from user metadata
-const userGithubUsername =
-    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
-
-if (userGithubUsername !== adminGithubUsername) {
-    // Sign out and redirect
-    await supabase.auth.signOut();
-    return Astro.redirect("/admin/login?error=unauthorized");
-}
-
-// Get skill group ID from URL params
 const { id } = Astro.params;
-if (!id) {
-    return Astro.redirect("/admin/dashboard");
-}
+if (!id) return Astro.redirect("/admin/dashboard");
 
-// Fetch skill category
-const { data: skillGroup, error: fetchError } = await supabase
-    .from("skill_categories")
-    .select("id, name, description, sort_order, is_active, parent_category_id")
-    .eq("id", id)
-    .single();
+const [skillGroup] = await sql`
+    SELECT id, name, description, sort_order, is_active, parent_category_id
+    FROM skill_categories WHERE id = ${id}
+`;
+if (!skillGroup) return Astro.redirect("/admin/dashboard");
 
-// Redirect if skill category not found
-if (!skillGroup || fetchError) {
-    return Astro.redirect("/admin/dashboard");
-}
-
-// Fetch site author from personal_info table
-const { data: personalInfo } = await supabase
-    .from("personal_info")
-    .select("full_name")
-    .single();
-
+const [personalInfo] = await sql`SELECT full_name FROM personal_info LIMIT 1`;
 const siteAuthor = personalInfo?.full_name || "Admin";
 
-// Fetch skills in this category
-const { data: skills } = await supabase
-    .from("skills")
-    .select("id, skill_translations(language_code, name)")
-    .eq("skill_category_id", id)
-    .order("sort_order", { ascending: true });
+const skillRows = await sql`
+    SELECT s.id, st.language_code, st.name AS skill_name
+    FROM skills s
+    LEFT JOIN skill_translations st ON st.skill_id = s.id
+    WHERE s.skill_category_id = ${id}
+    ORDER BY s.sort_order ASC
+`;
+const skillsMap = new Map<string, any>();
+for (const r of skillRows) {
+    if (!skillsMap.has(r.id)) skillsMap.set(r.id, { id: r.id, skill_translations: [] });
+    if (r.language_code) skillsMap.get(r.id).skill_translations.push({ language_code: r.language_code, name: r.skill_name });
+}
+const skills = Array.from(skillsMap.values());
 
-// Fetch site languages for translations
-const { data: siteLanguages } = await supabase
-    .from("site_languages")
-    .select("language_code, language_name, is_default")
-    .eq("is_active", true)
-    .order("is_default", { ascending: false });
+const siteLanguages = await sql`
+    SELECT language_code, language_name, is_default FROM site_languages
+    WHERE is_active = true ORDER BY is_default DESC
+`;
+const parentCategories = await sql`
+    SELECT id, name FROM skill_categories
+    WHERE parent_category_id IS NULL AND is_active = true ORDER BY sort_order ASC
+`;
 
-// Fetch top-level categories (for parent selection)
-const { data: parentCategories } = await supabase
-    .from("skill_categories")
-    .select("id, name")
-    .is("parent_category_id", null)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true });
+const subCatRows = await sql`
+    SELECT sc.id, sc.name, sc.sort_order, sc.is_active,
+           s.id AS skill_id, st.language_code, st.name AS skill_name
+    FROM skill_categories sc
+    LEFT JOIN skills s ON s.skill_category_id = sc.id
+    LEFT JOIN skill_translations st ON st.skill_id = s.id
+    WHERE sc.parent_category_id = ${id}
+    ORDER BY sc.sort_order ASC
+`;
+const subCatMap = new Map<string, any>();
+for (const r of subCatRows) {
+    if (!subCatMap.has(r.id)) {
+        subCatMap.set(r.id, { id: r.id, name: r.name, sort_order: r.sort_order, is_active: r.is_active, skills: [] });
+    }
+    if (r.skill_id && r.language_code) {
+        const sc = subCatMap.get(r.id);
+        let skill = sc.skills.find((s: any) => s.id === r.skill_id);
+        if (!skill) { skill = { id: r.skill_id, skill_translations: [] }; sc.skills.push(skill); }
+        skill.skill_translations.push({ language_code: r.language_code, name: r.skill_name });
+    }
+}
+const subCategories = Array.from(subCatMap.values());
 
-// Fetch sub-categories of this category with their skills
-const { data: subCategories } = await supabase
-    .from("skill_categories")
-    .select(
-        "id, name, sort_order, is_active, skills(id, skill_translations(language_code, name))",
-    )
-    .eq("parent_category_id", id)
-    .order("sort_order", { ascending: true });
-
-const skillsJson = JSON.stringify(skills || []);
-const siteLanguagesJson = JSON.stringify(siteLanguages || []);
-const parentCategoriesJson = JSON.stringify(parentCategories || []);
-const subCategoriesJson = JSON.stringify(subCategories || []);
+const skillsJson = JSON.stringify(skills);
+const siteLanguagesJson = JSON.stringify(siteLanguages);
+const parentCategoriesJson = JSON.stringify(parentCategories);
+const subCategoriesJson = JSON.stringify(subCategories);
 ---
 
 <Layout title={`Edit Skill Category - Admin - ${siteAuthor}`}>
@@ -301,18 +283,8 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
 
     <script
         type="module"
-        define:vars={{
-            id,
-            skillsJson,
-            siteLanguagesJson,
-            parentCategoriesJson,
-            subCategoriesJson,
-            supabaseUrl: import.meta.env.PUBLIC_SUPABASE_URL,
-            supabaseAnonKey: import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
-        }}
+        define:vars={{ id, skillsJson, siteLanguagesJson, parentCategoriesJson, subCategoriesJson }}
     >
-        import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-        const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
         document.addEventListener("DOMContentLoaded", () => {
             const form = document.getElementById("skill-group-form");
@@ -458,28 +430,6 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                                         movedSkill,
                                     );
 
-                                    for (
-                                        let i = 0;
-                                        i < skillsState.length;
-                                        i++
-                                    ) {
-                                        if (skillsState[i].id) {
-                                            const { error: updateError } =
-                                                await supabase
-                                                    .from("skills")
-                                                    .update({ sort_order: i })
-                                                    .eq(
-                                                        "id",
-                                                        skillsState[i].id,
-                                                    );
-
-                                            if (updateError) {
-                                                throw new Error(
-                                                    "Failed to update skill order",
-                                                );
-                                            }
-                                        }
-                                    }
                                     renderSkillsList();
                                 }
                             } catch (error) {
@@ -500,30 +450,10 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                                 )
                                     return;
 
-                                try {
-                                    const { error: deleteError } =
-                                        await supabase
-                                            .from("skills")
-                                            .delete()
-                                            .eq("id", skill.id);
-
-                                    if (deleteError) {
-                                        throw new Error(
-                                            "Failed to delete skill",
-                                        );
-                                    }
-
-                                    skillsState = skillsState.filter(
-                                        (s) => s.id !== skill.id,
-                                    );
-                                    renderSkillsList();
-                                } catch (error) {
-                                    formError.textContent =
-                                        error instanceof Error
-                                            ? error.message
-                                            : "Failed to delete skill";
-                                    formError.classList.remove("hidden");
-                                }
+                                skillsState = skillsState.filter(
+                                    (s) => s.id !== skill.id,
+                                );
+                                renderSkillsList();
                             });
                     }
                 });
@@ -677,35 +607,8 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                                               ];
 
                                         if (hasId && isExisting) {
-                                            // Delete existing skill from database
-                                            if (
-                                                !confirm(
-                                                    `Delete "${skillName}"?`,
-                                                )
-                                            )
-                                                return;
-                                            try {
-                                                const { error: deleteError } =
-                                                    await supabase
-                                                        .from("skills")
-                                                        .delete()
-                                                        .eq("id", skill.id);
-                                                if (deleteError)
-                                                    throw new Error(
-                                                        "Failed to delete skill",
-                                                    );
-                                                subcategoriesState[
-                                                    subcatIndex
-                                                ].skills.splice(skillIndex, 1);
-                                            } catch (error) {
-                                                formError.textContent =
-                                                    error instanceof Error
-                                                        ? error.message
-                                                        : "Failed to delete skill";
-                                                formError.classList.remove(
-                                                    "hidden",
-                                                );
-                                            }
+                                            if (!confirm(`Delete "${skillName}"?`)) return;
+                                            subcategoriesState[subcatIndex].skills.splice(skillIndex, 1);
                                         } else {
                                             // Remove from array
                                             if (isExisting) {
@@ -830,31 +733,9 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                         .addEventListener("click", async (e) => {
                             e.stopPropagation();
                             if (isExisting) {
-                                if (
-                                    !confirm(
-                                        `Delete "${subcategory.name}" and all its skills?`,
-                                    )
-                                )
-                                    return;
-                                try {
-                                    const { error: deleteError } =
-                                        await supabase
-                                            .from("skill_categories")
-                                            .delete()
-                                            .eq("id", subcategory.id);
-                                    if (deleteError)
-                                        throw new Error(
-                                            "Failed to delete subcategory",
-                                        );
-                                    subcategoriesState.splice(subcatIndex, 1);
-                                    renderSubcategoriesList();
-                                } catch (error) {
-                                    formError.textContent =
-                                        error instanceof Error
-                                            ? error.message
-                                            : "Failed to delete subcategory";
-                                    formError.classList.remove("hidden");
-                                }
+                                if (!confirm(`Delete "${subcategory.name}" and all its skills?`)) return;
+                                subcategoriesState.splice(subcatIndex, 1);
+                                renderSubcategoriesList();
                             } else {
                                 newSubcategoriesToAdd.splice(
                                     subcatIndex - subcategoriesState.length,
@@ -946,202 +827,27 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                     formSuccess.classList.add("hidden");
 
                     const siteLanguages = JSON.parse(siteLanguagesJson);
+                    const languageCodes = siteLanguages.map((l) => l.language_code);
 
-                    // Update skill category directly with Supabase
-                    const { error: updateError } = await supabase
-                        .from("skill_categories")
-                        .update({
-                            name,
-                            description: description || null,
-                            sort_order: sortOrder,
-                            is_active: isActive,
-                        })
-                        .eq("id", id);
+                    // Build payload for API
+                    const skills = skillsState.map((s) => ({ id: s.isNew ? undefined : s.id, name: s.name }));
+                    const subcategories = subcategoriesState.map((sc) => ({
+                        id: sc.isNew ? undefined : sc.id,
+                        name: sc.name,
+                        skills: sc.skills.map((s) => ({ id: s.isNew ? undefined : s.id, name: s.name })),
+                    }));
 
-                    if (updateError) {
-                        throw new Error("Failed to update category");
-                    }
-
-                    // Create new subcategories with their skills
-                    let totalNewSubcategories = 0;
-                    let totalNewSubcategorySkills = 0;
-
-                    for (const subcategory of newSubcategoriesToAdd) {
-                        const { data: subcat, error: subcategoryError } =
-                            await supabase
-                                .from("skill_categories")
-                                .insert({
-                                    name: subcategory.name,
-                                    parent_category_id: id,
-                                    is_active: true,
-                                })
-                                .select()
-                                .single();
-
-                        if (subcategoryError) {
-                            throw new Error(
-                                `Failed to create subcategory "${subcategory.name}"`,
-                            );
-                        }
-
-                        totalNewSubcategories++;
-                        const subcatId = subcat.id;
-
-                        // Create skills for this new subcategory
-                        for (const skillName of subcategory.skills) {
-                            const { data: skill, error: skillError } =
-                                await supabase
-                                    .from("skills")
-                                    .insert({
-                                        skill_category_id: subcatId,
-                                        is_active: true,
-                                    })
-                                    .select()
-                                    .single();
-
-                            if (skillError) {
-                                throw new Error(
-                                    `Failed to create skill "${skillName}"`,
-                                );
-                            }
-
-                            const skillId = skill.id;
-                            const translations = siteLanguages.map((lang) => ({
-                                skill_id: skillId,
-                                language_code: lang.language_code,
-                                name: skillName,
-                                description: "",
-                            }));
-
-                            const { error: translationError } = await supabase
-                                .from("skill_translations")
-                                .insert(translations);
-
-                            if (translationError) {
-                                throw new Error(
-                                    "Failed to create translations",
-                                );
-                            }
-
-                            totalNewSubcategorySkills++;
-                        }
-                    }
-
-                    // Create new skills for existing subcategories
-                    let totalExistingSubcategorySkills = 0;
-                    for (const subcat of subcategoriesState) {
-                        const newSkillsForSubcat = subcat.skills.filter(
-                            (s) => !s.id,
-                        );
-                        for (const skillObj of newSkillsForSubcat) {
-                            const { data: skill, error: skillError } =
-                                await supabase
-                                    .from("skills")
-                                    .insert({
-                                        skill_category_id: subcat.id,
-                                        is_active: true,
-                                    })
-                                    .select()
-                                    .single();
-
-                            if (skillError) {
-                                throw new Error(
-                                    `Failed to create skill "${skillObj.name}"`,
-                                );
-                            }
-
-                            const skillId = skill.id;
-                            const translations = siteLanguages.map((lang) => ({
-                                skill_id: skillId,
-                                language_code: lang.language_code,
-                                name: skillObj.name,
-                                description: "",
-                            }));
-
-                            const { error: translationError } = await supabase
-                                .from("skill_translations")
-                                .insert(translations);
-
-                            if (translationError) {
-                                throw new Error(
-                                    "Failed to create translations",
-                                );
-                            }
-
-                            totalExistingSubcategorySkills++;
-                        }
-                    }
-
-                    // Create new parent-level skills
-                    for (const skillName of newSkillsToAdd) {
-                        const { data: skill, error: skillError } =
-                            await supabase
-                                .from("skills")
-                                .insert({
-                                    skill_category_id: id,
-                                    is_active: true,
-                                })
-                                .select()
-                                .single();
-
-                        if (skillError) {
-                            throw new Error("Failed to create skill");
-                        }
-
-                        const skillId = skill.id;
-
-                        // Create translations for each language
-                        const translations = siteLanguages.map((lang) => ({
-                            skill_id: skillId,
-                            language_code: lang.language_code,
-                            name: skillName,
-                            description: "",
-                        }));
-
-                        const { error: translationError } = await supabase
-                            .from("skill_translations")
-                            .insert(translations);
-
-                        if (translationError) {
-                            throw new Error("Failed to create translations");
-                        }
-                    }
-
-                    // Build success message
-                    let messageParts = ["✓ Category updated"];
-                    if (totalNewSubcategories > 0) {
-                        messageParts.push(
-                            `${totalNewSubcategories} subcategory(ies) created`,
-                        );
-                    }
-                    if (totalNewSubcategorySkills > 0) {
-                        messageParts.push(
-                            `${totalNewSubcategorySkills} skill(s) in new subcategories`,
-                        );
-                    }
-                    if (totalExistingSubcategorySkills > 0) {
-                        messageParts.push(
-                            `${totalExistingSubcategorySkills} skill(s) in existing subcategories`,
-                        );
-                    }
-                    if (newSkillsToAdd.length > 0) {
-                        messageParts.push(
-                            `${newSkillsToAdd.length} parent-level skill(s)`,
-                        );
-                    }
-
-                    const message =
-                        messageParts.length > 1
-                            ? messageParts[0] +
-                              " and " +
-                              messageParts.slice(1).join(", ") +
-                              "!"
-                            : messageParts[0] + " successfully!";
+                    const res = await fetch(`/api/admin/skills/${id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name, description: description || null, sort_order: sortOrder, languages: languageCodes, skills, subcategories }),
+                    });
+                    if (!res.ok) throw new Error((await res.json()).message || "Failed to update category");
 
                     window.dispatchEvent(
                         new CustomEvent("show-toast", {
                             detail: {
-                                message: message,
+                                message: "Category updated successfully!",
                                 type: "success",
                             },
                         }),
@@ -1196,14 +902,8 @@ const subCategoriesJson = JSON.stringify(subCategories || []);
                 }
 
                 try {
-                    const { error: deleteError } = await supabase
-                        .from("skill_categories")
-                        .delete()
-                        .eq("id", id);
-
-                    if (deleteError) {
-                        throw new Error("Failed to delete skill category");
-                    }
+                    const delRes = await fetch(`/api/admin/skills/${id}`, { method: "DELETE" });
+                    if (!delRes.ok) throw new Error((await delRes.json()).message || "Failed to delete skill category");
 
                     window.dispatchEvent(
                         new CustomEvent("show-toast", {

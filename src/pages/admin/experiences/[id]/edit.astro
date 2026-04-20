@@ -2,47 +2,20 @@
 export const prerender = false;
 
 import Layout from "../../../../layouts/Layout.astro";
-import { createServerClient } from "../../../../lib/supabase";
+import { requireAdmin } from "../../../../lib/requireAdmin";
 import SaveButton from "../../../../components/SaveButton";
 import Toast from "../../../../components/Toast";
+import sql from "../../../../lib/db";
 
-const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
+const authResult = await requireAdmin(Astro.cookies);
+if (authResult instanceof Response) return authResult;
 
-const supabase = createServerClient(Astro.cookies);
-const {
-    data: { user },
-    error,
-} = await supabase.auth.getUser();
+const activeLanguages = await sql`
+    SELECT language_code, language_name, is_default
+    FROM site_languages WHERE is_active = true ORDER BY language_code ASC
+`;
 
-// Redirect to login if not authenticated
-if (!user || error) {
-    return Astro.redirect("/admin/login");
-}
-
-// Get GitHub username from user metadata
-const userGithubUsername =
-    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
-
-if (userGithubUsername !== adminGithubUsername) {
-    // Sign out and redirect
-    await supabase.auth.signOut();
-    return Astro.redirect("/admin/login?error=unauthorized");
-}
-
-const { data: siteLanguages } = await supabase
-    .from("site_languages")
-    .select("language_code, language_name, is_default, is_active")
-    .eq("is_active", true)
-    .order("language_code", { ascending: true });
-
-const activeLanguages = (siteLanguages ?? []) as {
-    language_code?: string | null;
-    language_name?: string | null;
-    is_default?: boolean | null;
-}[];
-
-const defaultLanguage =
-    activeLanguages.find((lang) => lang.is_default) ?? activeLanguages[0];
+const defaultLanguage = activeLanguages.find((l) => l.is_default) ?? activeLanguages[0];
 const defaultLanguageCode = defaultLanguage?.language_code ?? "";
 const defaultLanguageName = defaultLanguage?.language_name ?? "Default";
 
@@ -53,39 +26,43 @@ if (!id) {
 }
 
 // Fetch experience with translations
-const { data: experience, error: fetchError } = await supabase
-    .from("experiences")
-    .select(
-        `
-        id,
-        company,
-        start_month,
-        start_year,
-        end_month,
-        end_year,
-        is_published,
-        created_at,
-        updated_at,
-        translations:experience_translations(
-            id,
-            language_code,
-            title,
-            location,
-            description,
-            skills
-        )
-    `,
-    )
-    .eq("id", id)
-    .single();
+const rows = await sql`
+    SELECT e.id, e.company, e.start_month, e.start_year, e.end_month, e.end_year,
+           e.is_published, e.created_at, e.updated_at,
+           et.id AS translation_id, et.language_code, et.title, et.location,
+           et.description, et.skills
+    FROM experiences e
+    LEFT JOIN experience_translations et ON et.experience_id = e.id
+    WHERE e.id = ${id}
+`;
 
-// Redirect if experience not found
-if (!experience || fetchError) {
+if (!rows.length) {
     return Astro.redirect("/admin/dashboard");
 }
 
-// User is authenticated and authorized
-const userEmail = user.email;
+const expRow = rows[0];
+const experience = {
+    id: expRow.id,
+    company: expRow.company,
+    start_month: expRow.start_month,
+    start_year: expRow.start_year,
+    end_month: expRow.end_month,
+    end_year: expRow.end_year,
+    is_published: expRow.is_published,
+    created_at: expRow.created_at,
+    updated_at: expRow.updated_at,
+    translations: rows
+        .filter((r) => r.language_code)
+        .map((r) => ({
+            id: r.translation_id,
+            language_code: r.language_code,
+            title: r.title,
+            location: r.location,
+            description: r.description,
+            skills: r.skills,
+        })),
+};
+
 const isNew = Astro.url.searchParams.get("created") === "true";
 
 // Create a map of translations by language code for easy access

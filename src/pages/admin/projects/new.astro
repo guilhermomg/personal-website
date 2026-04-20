@@ -2,42 +2,15 @@
 export const prerender = false;
 
 import Layout from "../../../layouts/Layout.astro";
-import { createServerClient } from "../../../lib/supabase";
+import { requireAdmin } from "../../../lib/requireAdmin";
 import SaveButton from "../../../components/SaveButton";
 import Toast from "../../../components/Toast";
+import sql from "../../../lib/db";
 
-const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
+const authResult = await requireAdmin(Astro.cookies);
+if (authResult instanceof Response) return authResult;
 
-const supabase = createServerClient(Astro.cookies);
-const {
-    data: { user },
-    error,
-} = await supabase.auth.getUser();
-
-// Redirect to login if not authenticated
-if (!user || error) {
-    return Astro.redirect("/admin/login");
-}
-
-// Get GitHub username from user metadata
-const userGithubUsername =
-    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
-
-if (userGithubUsername !== adminGithubUsername) {
-    // Sign out and redirect
-    await supabase.auth.signOut();
-    return Astro.redirect("/admin/login?error=unauthorized");
-}
-
-// User is authenticated and authorized
-const userEmail = user.email;
-
-// Fetch siteAuthor from personal_info table
-const { data: personalInfo } = await supabase
-    .from("personal_info")
-    .select("full_name")
-    .single();
-
+const [personalInfo] = await sql`SELECT full_name FROM personal_info LIMIT 1`;
 const siteAuthor = personalInfo?.full_name || "Admin";
 ---
 
@@ -261,7 +234,6 @@ const siteAuthor = personalInfo?.full_name || "Admin";
     <Toast client:load />
 
     <script>
-        import { supabase } from "../../../lib/supabase";
 
         const form = document.getElementById("project-form") as HTMLFormElement;
         const nameInput = document.getElementById("name") as HTMLInputElement;
@@ -346,26 +318,12 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                         throw new Error("GitHub URL is not valid");
                     }
 
-                    // Insert new project
-                    const { data, error } = await supabase
-                        .from("projects")
-                        .insert([
-                            {
-                                name,
-                                description,
-                                tags,
-                                link,
-                                github_link,
-                                order,
-                                status,
-                            },
-                        ])
-                        .select()
-                        .single();
-
-                    if (error) {
-                        throw error;
-                    }
+                    const res = await fetch("/api/admin/projects", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name, description, tags, link, github_link, order, status }),
+                    });
+                    if (!res.ok) throw new Error((await res.json()).message || "Failed to create project");
 
                     window.dispatchEvent(
                         new CustomEvent("show-toast", {

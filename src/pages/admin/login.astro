@@ -2,29 +2,25 @@
 export const prerender = false;
 
 import Layout from "../../layouts/Layout.astro";
-import { createServerClient } from "../../lib/supabase";
+import { getSessionUser } from "../../lib/auth";
+import sql from "../../lib/db";
 
-const supabase = createServerClient(Astro.cookies);
-const {
-    data: { user },
-} = await supabase.auth.getUser();
-
+const user = await getSessionUser(Astro.cookies);
 if (user) {
     return Astro.redirect("/admin/dashboard");
 }
 
-const { data: personalInfo } = await supabase
-    .from("personal_info")
-    .select("full_name")
-    .single();
-
+const [personalInfo] = await sql`SELECT full_name FROM personal_info LIMIT 1`;
 const siteAuthor = personalInfo?.full_name || "Admin";
-const errorParam = Astro.url.searchParams.get("error");
-let errorMessage = "";
 
-if (errorParam === "unauthorized") {
-    errorMessage = "You are not authorized to access the admin dashboard.";
-}
+const errorParam = Astro.url.searchParams.get("error");
+const errorMessages: Record<string, string> = {
+    unauthorized: "You are not authorized to access the admin dashboard.",
+    no_code: "GitHub OAuth failed. Please try again.",
+    token_failed: "Failed to authenticate with GitHub. Please try again.",
+    user_failed: "Failed to retrieve GitHub user info. Please try again.",
+};
+const errorMessage = errorParam ? (errorMessages[errorParam] ?? "Authentication failed. Please try again.") : "";
 ---
 
 <Layout title={`Admin Login - ${siteAuthor}`}>
@@ -62,9 +58,9 @@ if (errorParam === "unauthorized") {
                         </div>
                     )
                 }
-                <div id="auth-container" class="space-y-4">
-                    <button
-                        id="github-login-btn"
+                <div class="space-y-4">
+                    <a
+                        href="/admin/login/github"
                         class="w-full inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                     >
                         <svg
@@ -79,20 +75,7 @@ if (errorParam === "unauthorized") {
                                 clip-rule="evenodd"></path>
                         </svg>
                         Sign in with GitHub
-                    </button>
-
-                    <div
-                        id="error-message"
-                        class="hidden text-red-600 dark:text-red-400 text-sm text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-md"
-                    >
-                    </div>
-
-                    <div
-                        id="loading-message"
-                        class="hidden text-primary-600 dark:text-primary-400 text-sm text-center p-3 bg-primary-50 dark:bg-primary-900/20 rounded-md"
-                    >
-                        Redirecting to GitHub...
-                    </div>
+                    </a>
                 </div>
             </div>
 
@@ -106,59 +89,4 @@ if (errorParam === "unauthorized") {
             </div>
         </div>
     </div>
-
-    <script>
-        import { supabase } from "../../lib/supabase";
-
-        const button = document.getElementById("github-login-btn");
-        const errorMessage = document.getElementById("error-message");
-        const loadingMessage = document.getElementById("loading-message");
-
-        async function loginWithGitHub() {
-            try {
-                if (button) {
-                    button.setAttribute("disabled", "true");
-                    button.classList.add("opacity-50", "cursor-not-allowed");
-                }
-                if (loadingMessage) {
-                    loadingMessage.classList.remove("hidden");
-                }
-                if (errorMessage) {
-                    errorMessage.classList.add("hidden");
-                }
-
-                const { data, error } = await supabase.auth.signInWithOAuth({
-                    provider: "github",
-                    options: {
-                        redirectTo: `${window.location.origin}/admin/callback`,
-                        skipBrowserRedirect: false,
-                    },
-                });
-
-                if (error) {
-                    throw error;
-                }
-            } catch (error) {
-                if (errorMessage) {
-                    errorMessage.textContent =
-                        error instanceof Error
-                            ? error.message
-                            : "Failed to sign in. Please try again.";
-                    errorMessage.classList.remove("hidden");
-                }
-                if (loadingMessage) {
-                    loadingMessage.classList.add("hidden");
-                }
-
-                if (button) {
-                    button.removeAttribute("disabled");
-                    button.classList.remove("opacity-50", "cursor-not-allowed");
-                }
-            }
-        }
-
-        if (button) {
-            button.addEventListener("click", loginWithGitHub);
-        }
-    </script>
 </Layout>

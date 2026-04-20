@@ -2,60 +2,31 @@
 export const prerender = false;
 
 import Layout from "../../../layouts/Layout.astro";
-import { createServerClient } from "../../../lib/supabase";
+import { requireAdmin } from "../../../lib/requireAdmin";
 import SaveButton from "../../../components/SaveButton";
 import Toast from "../../../components/Toast";
+import sql from "../../../lib/db";
 
-const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
+const authResult = await requireAdmin(Astro.cookies);
+if (authResult instanceof Response) return authResult;
 
-const supabase = createServerClient(Astro.cookies);
-const {
-    data: { user },
-    error,
-} = await supabase.auth.getUser();
+const [personalInfo] = await sql`
+    SELECT id, full_name, github_username, email, location, linkedin_url, seo_description, seo_keywords
+    FROM personal_info LIMIT 1
+`;
 
-// Redirect to login if not authenticated
-if (!user || error) {
-    return Astro.redirect("/admin/login");
-}
+const siteLanguages = await sql`
+    SELECT * FROM site_languages WHERE is_active = true ORDER BY language_code ASC
+`;
 
-// Get GitHub username from user metadata
-const userGithubUsername =
-    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
+const translations = await sql`
+    SELECT * FROM personal_info_translations ORDER BY language_code ASC
+`;
 
-if (userGithubUsername !== adminGithubUsername) {
-    // Sign out and redirect
-    await supabase.auth.signOut();
-    return Astro.redirect("/admin/login?error=unauthorized");
-}
+const languagesSpoken = await sql`
+    SELECT * FROM languages_spoken ORDER BY order_index ASC
+`;
 
-// Fetch personal info
-const { data: personalInfo, error: fetchError } = await supabase
-    .from("personal_info")
-    .select("id, full_name, github_username, email, location, linkedin_url, seo_description, seo_keywords")
-    .single();
-
-// Fetch active site languages
-const { data: siteLanguages } = await supabase
-    .from("site_languages")
-    .select("*")
-    .eq("is_active", true)
-    .order("language_code", { ascending: true });
-
-// Fetch all translations
-const { data: translations } = await supabase
-    .from("personal_info_translations")
-    .select("*")
-    .order("language_code", { ascending: true });
-
-// Fetch languages spoken
-const { data: languagesSpoken } = await supabase
-    .from("languages_spoken")
-    .select("*")
-    .order("order_index", { ascending: true });
-
-// User is authenticated and authorized
-const userEmail = user.email;
 const siteAuthor = personalInfo?.full_name || "Admin";
 ---
 
@@ -557,7 +528,6 @@ const siteAuthor = personalInfo?.full_name || "Admin";
     </div>
 
     <script>
-        import { supabase } from "../../../lib/supabase";
 
         // Basic Information Form
         const basicForm = document.getElementById(
@@ -619,23 +589,12 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                         throw new Error("Full name is required");
                     }
 
-                    const { error } = await supabase
-                        .from("personal_info")
-                        .update({
-                            full_name,
-                            github_username: github_username || null,
-                            email: email || null,
-                            location: location || null,
-                            linkedin_url: linkedin_url || null,
-                            seo_description: seo_description || null,
-                            seo_keywords: seo_keywords || null,
-                            updated_at: new Date().toISOString(),
-                        })
-                        .eq("id", personalInfoId);
-
-                    if (error) {
-                        throw error;
-                    }
+                    const res = await fetch("/api/admin/personal-info", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ type: "basic", full_name, github_username: github_username || null, email: email || null, location: location || null, linkedin_url: linkedin_url || null, seo_description: seo_description || null, seo_keywords: seo_keywords || null }),
+                    });
+                    if (!res.ok) throw new Error((await res.json()).message || "Failed to update basic information");
 
                     window.dispatchEvent(
                         new CustomEvent("show-toast", {
@@ -705,35 +664,12 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                         throw new Error("All fields are required");
                     }
 
-                    if (translationId) {
-                        // Update existing translation
-                        const { error } = await supabase
-                            .from("personal_info_translations")
-                            .update({
-                                title,
-                                subtitle,
-                                about_title,
-                                about_description,
-                                updated_at: new Date().toISOString(),
-                            })
-                            .eq("id", translationId);
-
-                        if (error) throw error;
-                    } else {
-                        // Insert new translation
-                        const { error } = await supabase
-                            .from("personal_info_translations")
-                            .insert({
-                                personal_info_id: personalInfoId,
-                                language_code: lang,
-                                title,
-                                subtitle,
-                                about_title,
-                                about_description,
-                            });
-
-                        if (error) throw error;
-                    }
+                    const tRes = await fetch("/api/admin/personal-info", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ type: "translation", language_code: lang, title, subtitle, about_title, about_description }),
+                    });
+                    if (!tRes.ok) throw new Error((await tRes.json()).message || "Failed to update translation");
 
                     window.dispatchEvent(
                         new CustomEvent("show-toast", {
@@ -890,40 +826,20 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                     }
                 });
 
-                // Delete all existing languages
-                await supabase
-                    .from("languages_spoken")
-                    .delete()
-                    .eq("personal_info_id", personalInfoId);
+                const lRes = await fetch("/api/admin/personal-info", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ type: "languages_spoken", languages }),
+                });
+                if (!lRes.ok) throw new Error((await lRes.json()).message || "Failed to update languages");
 
-                // Insert new languages
-                if (languages.length > 0) {
-                    const { error } = await supabase
-                        .from("languages_spoken")
-                        .insert(
-                            languages.map((lang) => ({
-                                personal_info_id: personalInfoId,
-                                flag_emoji: lang.flag_emoji,
-                                language_name: lang.language_name,
-                                proficiency_level: lang.proficiency_level,
-                                order_index: lang.order_index,
-                            })),
-                        );
+                window.dispatchEvent(
+                    new CustomEvent("show-toast", {
+                        detail: { message: "Languages updated successfully!", type: "success" },
+                    }),
+                );
 
-                    if (error) throw error;
-                }
-
-                if (languagesSuccessMessage) {
-                    languagesSuccessMessage.classList.remove("hidden");
-                    setTimeout(() => {
-                        languagesSuccessMessage.classList.add("hidden");
-                    }, 3000);
-                }
-
-                // Reload page to refresh the list
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
+                setTimeout(() => { window.location.reload(); }, 1500);
             } catch (err) {
                 const message =
                     err instanceof Error

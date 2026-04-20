@@ -1,9 +1,9 @@
 /// <reference types="astro/client" />
 
 interface ImportMetaEnv {
-  readonly PUBLIC_SUPABASE_URL: string;
-  readonly PUBLIC_SUPABASE_ANON_KEY: string;
+  readonly DATABASE_URL: string;
   readonly GITHUB_USERNAME: string;
+  readonly BLOB_READ_WRITE_TOKEN: string;
 }
 
 interface ImportMeta {

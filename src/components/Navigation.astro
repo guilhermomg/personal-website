@@ -6,34 +6,23 @@ import {
 } from "../i18n/utils";
 import { languages, defaultLang } from "../i18n/config";
 import LanguageSwitcher from "./LanguageSwitcher.astro";
-import { supabase } from "../lib/supabase";
+import sql from "../lib/db";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-// Fetch personal info for name
-const { data: personalInfo } = await supabase
-    .from("personal_info")
-    .select("full_name")
-    .single();
-
+const [personalInfo] = await sql`SELECT full_name FROM personal_info LIMIT 1`;
 const siteAuthor = personalInfo?.full_name || "Developer";
 
-// Check if there are any published projects
-const { count: projectsCount } = await supabase
-    .from("projects")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "published");
+const [{ count: projectsCount }] = await sql`
+  SELECT COUNT(*) AS count FROM projects WHERE status = 'published'
+`;
+const hasProjects = parseInt(projectsCount) > 0;
 
-const hasProjects = projectsCount && projectsCount > 0;
-
-// Check if there are any published articles
-const { count: articlesCount } = await supabase
-    .from("articles")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "published");
-
-const hasArticles = articlesCount && articlesCount > 0;
+const [{ count: articlesCount }] = await sql`
+  SELECT COUNT(*) AS count FROM articles WHERE status = 'published'
+`;
+const hasArticles = parseInt(articlesCount) > 0;
 
 // Build language list dynamically from config
 const languagesList = Object.entries(languages).map(([code, name]) => ({

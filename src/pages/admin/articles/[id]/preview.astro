@@ -2,10 +2,9 @@
 export const prerender = false;
 
 import Layout from "../../../../layouts/Layout.astro";
-import { createServerClient } from "../../../../lib/supabase";
+import { requireAdmin } from "../../../../lib/requireAdmin";
 import { marked } from "marked";
-
-const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
+import sql from "../../../../lib/db";
 
 // Configure marked
 marked.setOptions({
@@ -13,45 +12,17 @@ marked.setOptions({
     gfm: true,
 });
 
-const supabase = createServerClient(Astro.cookies);
-const {
-    data: { user },
-    error,
-} = await supabase.auth.getUser();
+const authResult = await requireAdmin(Astro.cookies);
+if (authResult instanceof Response) return authResult;
 
-// Redirect to login if not authenticated
-if (!user || error) {
-    return Astro.redirect("/admin/login");
-}
-
-// Get GitHub username from user metadata
-const userGithubUsername =
-    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
-
-if (userGithubUsername !== adminGithubUsername) {
-    // Sign out and redirect
-    await supabase.auth.signOut();
-    return Astro.redirect("/admin/login?error=unauthorized");
-}
-
-// Get article ID from URL params
 const { id } = Astro.params;
-if (!id) {
-    return new Response("Not Found", { status: 404 });
-}
+if (!id) return new Response("Not Found", { status: 404 });
 
-// Fetch article by ID (preview allows any status)
-const { data: article, error: fetchError } = await supabase
-    .from("articles")
-    .select(
-        "id, title, slug, content, status, created_at, updated_at, description, featured_image, keywords, excerpt, read_time",
-    )
-    .eq("id", id)
-    .single();
-
-if (!article || fetchError) {
-    return new Response("Not Found", { status: 404 });
-}
+const [article] = await sql`
+    SELECT id, title, slug, content, status, created_at, updated_at, description, featured_image, keywords, excerpt, read_time
+    FROM articles WHERE id = ${id}
+`;
+if (!article) return new Response("Not Found", { status: 404 });
 
 // Render markdown to HTML
 const renderedContent = marked.parse(article.content || "") as string;
@@ -67,12 +38,7 @@ const formatDate = (value?: string | null) => {
           });
 };
 
-// Fetch siteAuthor from personal_info table
-const { data: personalInfo } = await supabase
-    .from("personal_info")
-    .select("full_name")
-    .single();
-
+const [personalInfo] = await sql`SELECT full_name FROM personal_info LIMIT 1`;
 const siteAuthor = personalInfo?.full_name || "Admin";
 ---
 
@@ -129,7 +95,7 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                     {
                         article.featured_image ? (
                             <img
-                                src={article.featured_image}
+                                src={`/api/image?url=${encodeURIComponent(article.featured_image)}`}
                                 alt="OG preview"
                                 class="w-full h-64 object-cover bg-gray-100 dark:bg-gray-700"
                                 onerror="this.src='/og-image.jpg'"

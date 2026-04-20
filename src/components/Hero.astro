@@ -1,22 +1,20 @@
 ---
 import { getLangFromUrl, useTranslations } from '../i18n/utils';
 import ResumeDownload from './ResumeDownload.astro';
-import { supabase } from '../lib/supabase';
+import sql from '../lib/db';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-// Fetch personal info from database
-const { data: personalInfo } = await supabase
-  .from('personal_info')
-  .select('id, full_name, github_username, email, linkedin_url')
-  .single();
+const [personalInfo] = await sql`
+  SELECT id, full_name, github_username, email, linkedin_url
+  FROM personal_info LIMIT 1
+`;
 
-const { data: translations } = await supabase
-  .from('personal_info_translations')
-  .select('title, subtitle')
-  .eq('language_code', lang)
-  .single();
+const [translations] = await sql`
+  SELECT title, subtitle FROM personal_info_translations
+  WHERE language_code = ${lang} LIMIT 1
+`;
 
 const githubUsername = personalInfo?.github_username || import.meta.env.GITHUB_USERNAME;
 const siteAuthor = personalInfo?.full_name || "Developer";

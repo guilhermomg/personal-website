@@ -26,3 +26,4 @@ pnpm-debug.log*
 # IDEs
 .vscode/
 .vercel
+.env.local

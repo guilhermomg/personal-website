@@ -1,16 +1,14 @@
 ---
 import { getLangFromUrl, useTranslations } from "../i18n/utils";
-import { supabase } from "../lib/supabase";
+import sql from "../lib/db";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const currentYear = new Date().getFullYear();
 
-// Fetch personal info
-const { data: personalInfo } = await supabase
-    .from("personal_info")
-    .select("full_name, github_username, email, linkedin_url")
-    .single();
+const [personalInfo] = await sql`
+  SELECT full_name, github_username, email, linkedin_url FROM personal_info LIMIT 1
+`;
 
 const siteAuthor = personalInfo?.full_name || "Developer";
 const email = personalInfo?.email || "";

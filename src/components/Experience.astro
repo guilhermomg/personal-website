@@ -1,39 +1,42 @@
 ---
 import { getLangFromUrl, useTranslations } from '../i18n/utils';
-import { createClient } from '@supabase/supabase-js';
+import sql from '../lib/db';
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-// Create unauthenticated Supabase client for public data
-const supabase = createClient(
-  import.meta.env.PUBLIC_SUPABASE_URL,
-  import.meta.env.PUBLIC_SUPABASE_ANON_KEY
-);
+const rows = await sql`
+  SELECT e.id, e.company, e.start_month, e.start_year, e.end_month, e.end_year,
+         et.language_code, et.title, et.location, et.description, et.skills
+  FROM experiences e
+  LEFT JOIN experience_translations et ON et.experience_id = e.id
+  WHERE e.is_published = true
+  ORDER BY e.start_year DESC, e.start_month DESC,
+           e.end_year DESC NULLS LAST, e.end_month DESC NULLS LAST
+`;
 
-// Fetch experiences from database with all translations
-const { data: experiencesData } = await supabase
-  .from('experiences')
-  .select(`
-    id,
-    company,
-    start_month,
-    start_year,
-    end_month,
-    end_year,
-    translations:experience_translations(
-      language_code,
-      title,
-      location,
-      description,
-      skills
-    )
-  `)
-  .eq('is_published', true)
-  .order('start_year', { ascending: false })
-  .order('start_month', { ascending: false })
-  .order('end_year', { ascending: false })
-  .order('end_month', { ascending: false });
+// Group flat rows into nested { id, company, ..., translations: [...] }
+const experienceMap = new Map<string, any>();
+for (const row of rows) {
+  if (!experienceMap.has(row.id)) {
+    experienceMap.set(row.id, {
+      id: row.id, company: row.company,
+      start_month: row.start_month, start_year: row.start_year,
+      end_month: row.end_month, end_year: row.end_year,
+      translations: [],
+    });
+  }
+  if (row.language_code) {
+    experienceMap.get(row.id).translations.push({
+      language_code: row.language_code,
+      title: row.title,
+      location: row.location,
+      description: row.description,
+      skills: row.skills,
+    });
+  }
+}
+const experiencesData = [...experienceMap.values()];
 
 // Helper function to get month name
 const getMonthName = (month: number | null) => {

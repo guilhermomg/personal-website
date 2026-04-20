@@ -1,42 +1,18 @@
 import type { APIRoute } from "astro";
-import { createServerClient } from "../../../lib/supabase";
+import { verifyAdminRequest } from "../../../lib/apiAuth";
+import sql from "../../../lib/db";
 
 export const PUT: APIRoute = async ({ request, cookies, params }) => {
     try {
+        const authErr = await verifyAdminRequest(cookies);
+        if (authErr) return authErr;
+
         const { id } = params;
 
         if (!id) {
             return new Response(
                 JSON.stringify({ message: "Missing experience ID" }),
                 { status: 400 }
-            );
-        }
-
-        const supabase = createServerClient(cookies);
-
-        // Verify user is authenticated
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser();
-
-        if (!user || authError) {
-            return new Response(
-                JSON.stringify({ message: "Unauthorized" }),
-                { status: 401 }
-            );
-        }
-
-        // Verify user is admin
-        const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
-        const userGithubUsername =
-            user.user_metadata?.user_name ||
-            user.user_metadata?.preferred_username;
-
-        if (userGithubUsername !== adminGithubUsername) {
-            return new Response(
-                JSON.stringify({ message: "Forbidden" }),
-                { status: 403 }
             );
         }
 
@@ -62,45 +38,20 @@ export const PUT: APIRoute = async ({ request, cookies, params }) => {
             );
         }
 
-        // Update experience
-        const { data, error } = await supabase
-            .from("experiences")
-            .update({
-                company: body.company,
-                start_month: body.start_month,
-                start_year: body.start_year,
-                end_month: body.end_month || null,
-                end_year: body.end_year || null,
-                is_published: body.is_published !== false,
-            })
-            .eq("id", id)
-            .select()
-            .single();
+        const [experience] = await sql`
+            UPDATE experiences SET
+                company = ${body.company},
+                start_month = ${body.start_month},
+                start_year = ${body.start_year},
+                end_month = ${body.end_month || null},
+                end_year = ${body.end_year || null},
+                is_published = ${body.is_published !== false}
+            WHERE id = ${id}
+            RETURNING *
+        `;
 
-        if (error) {
-            console.error("Supabase error:", error);
-            return new Response(
-                JSON.stringify({ message: "Failed to update experience" }),
-                { status: 500 }
-            );
-        }
+        await sql`DELETE FROM experience_translations WHERE experience_id = ${id}`;
 
-        // Upsert translations (delete old ones and insert new ones)
-        // First, delete existing translations
-        const { error: deleteError } = await supabase
-            .from("experience_translations")
-            .delete()
-            .eq("experience_id", id);
-
-        if (deleteError) {
-            console.error("Delete translation error:", deleteError);
-            return new Response(
-                JSON.stringify({ message: "Failed to update translations" }),
-                { status: 500 }
-            );
-        }
-
-        // Then insert new translations
         const translationsToInsert = Object.entries(body.translations).map(
             ([lang, translation]: [string, any]) => ({
                 experience_id: id,
@@ -112,19 +63,16 @@ export const PUT: APIRoute = async ({ request, cookies, params }) => {
             })
         );
 
-        const { error: insertError } = await supabase
-            .from("experience_translations")
-            .insert(translationsToInsert);
-
-        if (insertError) {
-            console.error("Insert translation error:", insertError);
-            return new Response(
-                JSON.stringify({ message: "Failed to update translations" }),
-                { status: 500 }
-            );
+        for (const t of translationsToInsert) {
+            await sql`
+                INSERT INTO experience_translations
+                    (experience_id, language_code, title, location, description, skills)
+                VALUES (${t.experience_id}, ${t.language_code}, ${t.title},
+                        ${t.location}, ${t.description}, ${t.skills})
+            `;
         }
 
-        return new Response(JSON.stringify(data), { status: 200 });
+        return new Response(JSON.stringify(experience), { status: 200 });
     } catch (error) {
         console.error("Error:", error);
         return new Response(
@@ -134,8 +82,11 @@ export const PUT: APIRoute = async ({ request, cookies, params }) => {
     }
 };
 
-export const DELETE: APIRoute = async ({ request, cookies, params }) => {
+export const DELETE: APIRoute = async ({ cookies, params }) => {
     try {
+        const authErr = await verifyAdminRequest(cookies);
+        if (authErr) return authErr;
+
         const { id } = params;
 
         if (!id) {
@@ -145,48 +96,7 @@ export const DELETE: APIRoute = async ({ request, cookies, params }) => {
             );
         }
 
-        const supabase = createServerClient(cookies);
-
-        // Verify user is authenticated
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser();
-
-        if (!user || authError) {
-            return new Response(
-                JSON.stringify({ message: "Unauthorized" }),
-                { status: 401 }
-            );
-        }
-
-        // Verify user is admin
-        const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
-        const userGithubUsername =
-            user.user_metadata?.user_name ||
-            user.user_metadata?.preferred_username;
-
-        if (userGithubUsername !== adminGithubUsername) {
-            return new Response(
-                JSON.stringify({ message: "Forbidden" }),
-                { status: 403 }
-            );
-        }
-
-        // Delete experience
-        const { error } = await supabase
-            .from("experiences")
-            .delete()
-            .eq("id", id);
-
-        if (error) {
-            console.error("Supabase error:", error);
-            return new Response(
-                JSON.stringify({ message: "Failed to delete experience" }),
-                { status: 500 }
-            );
-        }
-
+        await sql`DELETE FROM experiences WHERE id = ${id}`;
         return new Response(JSON.stringify({ success: true }), { status: 200 });
     } catch (error) {
         console.error("Error:", error);

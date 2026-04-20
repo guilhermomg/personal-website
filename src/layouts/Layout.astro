@@ -2,7 +2,7 @@
 import { getLangFromUrl, useTranslations } from "../i18n/utils";
 import Analytics from "@vercel/analytics/astro";
 import ChatButton from "../components/ChatButton.astro";
-import { supabase } from "../lib/supabase";
+import sql from "../lib/db";
 
 export interface Props {
     title: string;
@@ -45,28 +45,21 @@ const {
     projects = [],
 } = Astro.props;
 
-// Fetch personal info for structured data
-const { data: personalInfo } = await supabase
-    .from("personal_info")
-    .select(
-        "full_name, github_username, email, linkedin_url, seo_description, seo_keywords, job_title, og_image_url",
-    )
-    .single();
+const [personalInfo] = await sql`
+  SELECT full_name, github_username, email, linkedin_url,
+         seo_description, seo_keywords
+  FROM personal_info LIMIT 1
+`;
 
-// Fetch skills
-const { data: skills } = await supabase
-    .from("skills")
-    .select("name")
-    .eq("is_active", true)
-    .order("order", { ascending: true });
+const skills = await sql`
+  SELECT st.name
+  FROM skills s
+  JOIN skill_translations st ON st.skill_id = s.id
+  JOIN site_languages sl ON sl.language_code = st.language_code AND sl.is_default = true
+  WHERE s.is_active = true
+  ORDER BY s.sort_order ASC
+`;
 
-// Fetch education/alumni info
-const { data: education } = await supabase
-    .from("education")
-    .select("institution, field_of_study")
-    .eq("is_active", true)
-    .limit(1)
-    .single();
 
 const siteAuthor = personalInfo?.full_name || "Developer";
 const siteDescription = description || personalInfo?.seo_description || "";
@@ -75,11 +68,10 @@ const siteEmail = personalInfo?.email || "contact@example.com";
 const linkedinUrl = personalInfo?.linkedin_url || "https://www.linkedin.com/";
 const githubUsername = personalInfo?.github_username || "username";
 const githubUrl = `https://github.com/${githubUsername}`;
-const jobTitle = personalInfo?.job_title || "Developer";
-const ogImageUrl = personalInfo?.og_image_url || "/og-image.jpg";
-const skillsList = skills?.map((s) => s.name) || [];
-const alumniInstitution = education?.institution || "University";
-const fieldOfStudy = education?.field_of_study || "Computer Science";
+const jobTitle = "Developer";
+const ogImageUrl = "/og-image.jpg";
+const skillsList = (skills as any[]).map((s) => s.name as string);
+const alumniInstitution = "University";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);

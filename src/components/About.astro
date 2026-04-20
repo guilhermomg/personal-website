@@ -1,115 +1,84 @@
 ---
 import { getLangFromUrl, useTranslations } from "../i18n/utils";
-import { supabase } from "../lib/supabase";
+import sql from "../lib/db";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-// Fetch personal info translations from database
-const { data: translations } = await supabase
-    .from("personal_info_translations")
-    .select("about_title, about_description")
-    .eq("language_code", lang)
-    .single();
+const [translations] = await sql`
+  SELECT about_title, about_description FROM personal_info_translations
+  WHERE language_code = ${lang} LIMIT 1
+`;
 
-// Fetch languages spoken
-const { data: languagesSpoken } = await supabase
-    .from("languages_spoken")
-    .select("language_name, flag_emoji, proficiency_level")
-    .order("order_index", { ascending: true });
+const languagesSpoken = await sql`
+  SELECT language_name, flag_emoji, proficiency_level FROM languages_spoken
+  ORDER BY order_index ASC
+`;
 
-// Fetch skill categories and skills from database
-const { data: skillCategoriesData } = await supabase
-    .from("skill_categories")
-    .select(
-        `
-        id,
-        name,
-        sort_order,
-        skills (
-            id,
-            sort_order,
-            skill_translations (
-                language_code,
-                name
-            )
-        ),
-        sub_categories:skill_categories!parent_category_id (
-            id,
-            name,
-            sort_order,
-            skills (
-                id,
-                sort_order,
-                skill_translations (
-                    language_code,
-                    name
-                )
-            )
-        )
-    `,
-    )
-    .is("parent_category_id", null)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true });
+// Three focused queries, then assembled in JS
+const rootCategories = await sql`
+  SELECT id, name, sort_order FROM skill_categories
+  WHERE parent_category_id IS NULL AND is_active = true
+  ORDER BY sort_order ASC
+`;
 
-// Transform database data to preserve subcategory hierarchy
+const subCategories = await sql`
+  SELECT id, name, sort_order, parent_category_id FROM skill_categories
+  WHERE parent_category_id IS NOT NULL
+  ORDER BY sort_order ASC
+`;
+
+const skillRows = await sql`
+  SELECT s.id, s.skill_category_id, s.sort_order, st.language_code, st.name AS skill_name
+  FROM skills s
+  LEFT JOIN skill_translations st ON st.skill_id = s.id
+  WHERE s.is_active = true
+  ORDER BY s.sort_order ASC
+`;
+
+// Build skill name lookup: category_id → [skill names for lang]
+function skillsForCategory(categoryId: string): string[] {
+  return skillRows
+    .filter((r: any) => r.skill_category_id === categoryId)
+    .map((r: any) => {
+      // prefer current lang, fallback to 'en', then any
+      const byLang = skillRows.filter(
+        (x: any) => x.id === r.id && x.skill_category_id === categoryId
+      );
+      return (
+        byLang.find((x: any) => x.language_code === lang)?.skill_name ||
+        byLang.find((x: any) => x.language_code === "en")?.skill_name ||
+        r.skill_name
+      );
+    })
+    .filter(Boolean)
+    // deduplicate (multiple translation rows per skill)
+    .filter((v: string, i: number, a: string[]) => a.indexOf(v) === i);
+}
+
+const skillCategoriesData = rootCategories.map((cat: any) => ({
+  ...cat,
+  skills: skillsForCategory(cat.id),
+  sub_categories: subCategories
+    .filter((s: any) => s.parent_category_id === cat.id)
+    .map((sub: any) => ({ ...sub, skills: skillsForCategory(sub.id) }))
+    .filter((sub: any) => sub.skills.length > 0),
+}));
+
+// skillCategoriesData already has { name, skills: string[], sub_categories: [...] }
 type SkillCategory = {
     name: string;
     skills: string[];
-    subcategories: Array<{
-        name: string;
-        skills: string[];
-    }>;
+    subcategories: Array<{ name: string; skills: string[] }>;
 };
 
-const skillCategories: SkillCategory[] = [];
-
-if (skillCategoriesData) {
-    skillCategoriesData.forEach((category: any) => {
-        // Get skills directly under this category
-        const directSkills = (category.skills || [])
-            .map((skill: any) => {
-                const translation = skill.skill_translations?.find(
-                    (t: any) => t.language_code === lang,
-                );
-                return translation?.name || skill.skill_translations?.[0]?.name;
-            })
-            .filter(Boolean);
-
-        // Get subcategories with their skills
-        const subcategories = (category.sub_categories || [])
-            .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0))
-            .map((subcat: any) => {
-                const subcatSkills = (subcat.skills || [])
-                    .map((skill: any) => {
-                        const translation = skill.skill_translations?.find(
-                            (t: any) => t.language_code === lang,
-                        );
-                        return (
-                            translation?.name ||
-                            skill.skill_translations?.[0]?.name
-                        );
-                    })
-                    .filter(Boolean);
-
-                return {
-                    name: subcat.name,
-                    skills: subcatSkills,
-                };
-            })
-            .filter((subcat: any) => subcat.skills.length > 0);
-
-        // Only add category if it has skills or subcategories with skills
-        if (directSkills.length > 0 || subcategories.length > 0) {
-            skillCategories.push({
-                name: category.name,
-                skills: directSkills,
-                subcategories: subcategories,
-            });
-        }
-    });
-}
+const skillCategories: SkillCategory[] = skillCategoriesData
+    .filter((cat: any) => cat.skills.length > 0 || cat.sub_categories.length > 0)
+    .map((cat: any) => ({
+        name: cat.name,
+        skills: cat.skills,
+        subcategories: cat.sub_categories,
+    }));
 
 const aboutTitle = translations?.about_title || t("about.description");
 const aboutDescription = translations?.about_description || "";

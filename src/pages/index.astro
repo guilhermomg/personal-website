@@ -8,22 +8,17 @@ import Projects from "../components/Projects.astro";
 import LatestArticles from "../components/LatestArticles.astro";
 import Contact from "../components/Contact.astro";
 import Footer from "../components/Footer.astro";
-import { supabase } from "../lib/supabase";
+import sql from "../lib/db";
 import { defaultLang } from "../i18n/config";
 
 const lang = defaultLang;
 
-// Fetch personal info for title/SEO
-const { data: personalInfo } = await supabase
-    .from("personal_info")
-    .select("full_name, seo_description, seo_keywords")
-    .single();
-
-const { data: titleTranslation } = await supabase
-    .from("personal_info_translations")
-    .select("title")
-    .eq("language_code", lang)
-    .single();
+const [personalInfo] = await sql`
+  SELECT full_name, seo_description, seo_keywords FROM personal_info LIMIT 1
+`;
+const [titleTranslation] = await sql`
+  SELECT title FROM personal_info_translations WHERE language_code = ${lang} LIMIT 1
+`;
 
 const siteAuthor = personalInfo?.full_name || "Developer";
 const siteTitle = titleTranslation?.title || "";
@@ -32,12 +27,10 @@ const siteKeywords = personalInfo?.seo_keywords || "";
 
 const pageTitle = siteTitle ? `${siteAuthor} - ${siteTitle}` : siteAuthor;
 
-// Fetch published projects for SEO
-const { data: projects } = await supabase
-    .from("projects")
-    .select("id, name, description, tags, link, github_link")
-    .eq("status", "published")
-    .order("order", { ascending: true });
+const projects = await sql`
+  SELECT id, name, description, tags, link, github_link
+  FROM projects WHERE status = 'published' ORDER BY "order" ASC
+`;
 
 // Extract unique tags from all projects for SEO keywords
 const projectTags = projects

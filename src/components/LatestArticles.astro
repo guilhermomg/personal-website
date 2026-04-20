@@ -1,12 +1,11 @@
 ---
-import { supabase } from "../lib/supabase";
+import sql from "../lib/db";
 
-const { data: articles } = await supabase
-    .from("articles")
-    .select("id, title, slug, content, created_at")
-    .eq("status", "published")
-    .order("created_at", { ascending: false })
-    .limit(3);
+const articles = await sql`
+  SELECT id, title, slug, content, created_at FROM articles
+  WHERE status = 'published'
+  ORDER BY created_at DESC LIMIT 3
+`;
 
 const stripMarkdown = (text: string) => {
     return text.replace(/[#*`_\[\]()]/g, "").trim();

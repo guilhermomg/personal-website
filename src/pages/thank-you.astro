@@ -1,16 +1,12 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { getLangFromUrl, useTranslations } from "../i18n/utils";
-import { supabase } from "../lib/supabase";
+import sql from "../lib/db";
 
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 
-// Fetch personal info for title
-const { data: personalInfo } = await supabase
-    .from("personal_info")
-    .select("full_name")
-    .single();
+const [personalInfo] = await sql`SELECT full_name FROM personal_info LIMIT 1`;
 
 const siteAuthor = personalInfo?.full_name || "Developer";
 ---

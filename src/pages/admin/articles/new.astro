@@ -2,42 +2,15 @@
 export const prerender = false;
 
 import Layout from "../../../layouts/Layout.astro";
-import { createServerClient } from "../../../lib/supabase";
+import { requireAdmin } from "../../../lib/requireAdmin";
 import SaveButton from "../../../components/SaveButton";
 import Toast from "../../../components/Toast";
+import sql from "../../../lib/db";
 
-const adminGithubUsername = import.meta.env.GITHUB_USERNAME;
+const authResult = await requireAdmin(Astro.cookies);
+if (authResult instanceof Response) return authResult;
 
-const supabase = createServerClient(Astro.cookies);
-const {
-    data: { user },
-    error,
-} = await supabase.auth.getUser();
-
-// Redirect to login if not authenticated
-if (!user || error) {
-    return Astro.redirect("/admin/login");
-}
-
-// Get GitHub username from user metadata
-const userGithubUsername =
-    user.user_metadata?.user_name || user.user_metadata?.preferred_username;
-
-if (userGithubUsername !== adminGithubUsername) {
-    // Sign out and redirect
-    await supabase.auth.signOut();
-    return Astro.redirect("/admin/login?error=unauthorized");
-}
-
-// User is authenticated and authorized
-const userEmail = user.email;
-
-// Fetch siteAuthor from personal_info table
-const { data: personalInfo } = await supabase
-    .from("personal_info")
-    .select("full_name")
-    .single();
-
+const [personalInfo] = await sql`SELECT full_name FROM personal_info LIMIT 1`;
 const siteAuthor = personalInfo?.full_name || "Admin";
 ---
 
@@ -380,7 +353,6 @@ const siteAuthor = personalInfo?.full_name || "Admin";
     <Toast client:load />
 
     <script>
-        import { supabase } from "../../../lib/supabase";
         import { marked } from "marked";
 
         const form = document.getElementById("article-form") as HTMLFormElement;
@@ -653,86 +625,45 @@ const siteAuthor = personalInfo?.full_name || "Admin";
                         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
                         const filePath = `articles/${fileName}`;
 
-                        // Upload to Supabase Storage
-                        const { data: uploadData, error: uploadError } =
-                            await supabase.storage
-                                .from("personal-website")
-                                .upload(filePath, imageFile, {
-                                    contentType: imageFile.type,
-                                    upsert: false,
-                                });
-
-                        if (uploadError) {
-                            throw new Error(
-                                `Image upload failed: ${uploadError.message}`,
-                            );
+                        // Upload to Vercel Blob via API
+                        const uploadFormData = new FormData();
+                        uploadFormData.append("file", imageFile);
+                        const uploadRes = await fetch("/api/admin/uploads", {
+                            method: "POST",
+                            body: uploadFormData,
+                        });
+                        if (!uploadRes.ok) {
+                            const err = await uploadRes.json();
+                            throw new Error(`Image upload failed: ${err.message}`);
                         }
-
-                        // Get public URL
-                        const { data: urlData } = supabase.storage
-                            .from("personal-website")
-                            .getPublicUrl(filePath);
-
-                        featured_image = urlData.publicUrl;
+                        const uploadJson = await uploadRes.json();
+                        featured_image = uploadJson.url;
                     }
 
                     if (description.length > 160) {
-                        throw new Error(
-                            "Description must be 160 characters or less",
-                        );
+                        throw new Error("Description must be 160 characters or less");
                     }
 
-                    // Validate keywords format (optional but must be comma-separated if provided)
                     if (keywords && keywords.trim()) {
-                        const keywordList = keywords
-                            .split(",")
-                            .map((k) => k.trim())
-                            .filter((k) => k.length > 0);
+                        const keywordList = keywords.split(",").map((k: string) => k.trim()).filter((k: string) => k.length > 0);
                         if (keywordList.length === 0) {
-                            throw new Error(
-                                "Keywords must be comma-separated values",
-                            );
+                            throw new Error("Keywords must be comma-separated values");
                         }
                     }
 
-                    // Check if slug already exists
-                    const { data: existing } = await supabase
-                        .from("articles")
-                        .select("id")
-                        .eq("slug", slug)
-                        .single();
+                    // Insert new article via API
+                    const res = await fetch("/api/admin/articles", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            title, slug, content, status, description,
+                            featured_image, keywords, excerpt, read_time,
+                        }),
+                    });
 
-                    if (existing) {
-                        throw new Error(
-                            "Slug already exists. Please use a different slug.",
-                        );
-                    }
-
-                    // Insert new article
-                    const { data, error } = await supabase
-                        .from("articles")
-                        .insert([
-                            {
-                                title,
-                                slug,
-                                content,
-                                status,
-                                description,
-                                featured_image,
-                                keywords,
-                                excerpt,
-                                read_time,
-                                published_at:
-                                    status === "published"
-                                        ? new Date().toISOString()
-                                        : null,
-                            },
-                        ])
-                        .select()
-                        .single();
-
-                    if (error) {
-                        throw error;
+                    if (!res.ok) {
+                        const errData = await res.json();
+                        throw new Error(errData.message || "Failed to create article");
                     }
 
                     // Show success toast
